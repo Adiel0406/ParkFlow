@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Diseña los pisos y espacios del parqueo ParkFlow.">
+  <title>ParkFlow | Armar parqueo</title>
+  <script>
+    try {
+      document.documentElement.dataset.theme =
+        localStorage.getItem("parkflow-theme") === "dark" ? "dark" : "light";
+    } catch (error) {
+      document.documentElement.dataset.theme = "light";
+    }
+  </script>
+  <link rel="icon" href="assets/parking.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <script defer src="js/state.js"></script>
+  <script defer src="js/views.js"></script>
+  <script defer src="js/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="index.html" aria-label="ParkFlow inicio">
+      <img src="assets/parking.svg" alt="" class="brand-icon">
+      <span>Park<span class="brand-accent">Flow</span><small>GESTIÓN DE PARQUEO</small></span>
+    </a>
+
+    <div class="side-label">MENÚ PRINCIPAL</div>
+    <a class="nav-item" href="index.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M8 16v-5m4 5V8m4 8v-7m4 7V4"/></svg>
+      Resumen
+    </a>
+    <a class="nav-item" href="vehicles.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg>
+      Vehículos
+    </a>
+    <a class="nav-item" href="spaces.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg>
+      Espacios
+    </a>
+    <a class="nav-item active" href="layout.html" aria-current="page">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>
+      Armar parqueo
+    </a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+      <span class="theme-toggle-label">Modo oscuro</span>
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="beta-pill"><span></span> VERSIÓN BETA</div>
+      <p>Proyecto académico<br><strong>Estructuras de Datos</strong></p>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CONFIGURACIÓN DEL PARQUEO</p>
+        <h1>Armar parqueo</h1>
+        <p class="subtitle">Define los pisos y dibuja los espacios y rutas de cada nivel.</p>
+      </div>
+      <div class="topbar-right">
+        <span class="status-dot"></span>
+        <span>Sistema local activo</span>
+        <div class="avatar">PF</div>
+      </div>
+    </header>
+
+    <section class="panel layout-setup-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">1 · DIMENSIONES</p>
+          <h2>Configura los pisos y la cuadrícula</h2>
+        </div>
+        <span class="heading-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+        </span>
+      </div>
+      <form id="layoutSizeForm" class="layout-size-form">
+        <div>
+          <label for="basementCount">Subsuelos</label>
+          <input id="basementCount" type="number" min="0" max="5" value="0" required>
+        </div>
+        <div>
+          <label for="aboveGroundCount">Pisos desde planta baja</label>
+          <input id="aboveGroundCount" type="number" min="1" max="10" value="1" required>
+        </div>
+        <div>
+          <label for="layoutRows">Filas por piso</label>
+          <input id="layoutRows" type="number" min="1" max="20" value="3" required>
+        </div>
+        <div>
+          <label for="layoutColumns">Columnas por piso</label>
+          <input id="layoutColumns" type="number" min="1" max="20" value="4" required>
+        </div>
+        <button class="btn btn-quiet" type="submit">Actualizar estructura</button>
+      </form>
+      <p class="form-hint">Puedes crear hasta 5 subsuelos y 10 niveles desde la planta baja, con una cuadrícula de hasta 20 × 20 por piso. Las celdas que queden fuera de las nuevas dimensiones se eliminan.</p>
+    </section>
+
+    <section class="panel layout-editor-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">2 · DISEÑO</p>
+          <h2>Diseña cada piso</h2>
+          <p class="subtitle">Selecciona un elemento y pulsa las celdas para dibujar el plano.</p>
+        </div>
+        <span class="capacity-label"><span id="layoutFloorCount">Pisos</span></span>
+      </div>
+
+      <div id="layoutTools" class="layout-tools" aria-label="Elementos del plano">
+        <button class="layout-tool" type="button" data-layout-type="parking" aria-pressed="true"><span>P</span> Espacio</button>
+        <button class="layout-tool" type="button" data-layout-type="aisle" aria-pressed="false"><span>↕</span> Pasillo</button>
+        <button class="layout-tool" type="button" data-layout-type="entrance" aria-pressed="false"><span>⇧</span> Entrada</button>
+        <button class="layout-tool" type="button" data-layout-type="ramp" aria-pressed="false"><span>↗</span> Rampa</button>
+        <button class="layout-tool" type="button" data-layout-type="circularRamp" aria-pressed="false"><span>↻</span> Rampa circular</button>
+        <button class="layout-tool" type="button" data-layout-type="empty" aria-pressed="false"><span>·</span> Vacío</button>
+      </div>
+
+      <div id="layoutFloorTabs" class="layout-floor-tabs" role="group" aria-label="Selecciona un piso"></div>
+      <div class="layout-editor-scroll">
+        <div id="layoutEditorGrid" class="layout-editor-grid" aria-label="Cuadrícula editable del piso"></div>
+      </div>
+      <p id="layoutLockMessage" class="layout-lock-message" role="status" hidden>
+        Para guardar cambios en el plano, primero registra la salida de todos los vehículos.
+      </p>
+      <div class="layout-save-row">
+        <p class="form-hint">El diseño se guarda en este navegador y actualiza la capacidad en todas las páginas.</p>
+        <button id="saveLayout" class="btn btn-primary" type="button">Guardar diseño</button>
+      </div>
+    </section>
+
+    <footer class="footer">ParkFlow Beta <span>•</span> El plano se guarda en este navegador</footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

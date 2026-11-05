@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Resumen del sistema de registro y administración de parqueo ParkFlow.">
+  <title>ParkFlow | Resumen</title>
+  <script>
+    try {
+      document.documentElement.dataset.theme =
+        localStorage.getItem("parkflow-theme") === "dark" ? "dark" : "light";
+    } catch (error) {
+      document.documentElement.dataset.theme = "light";
+    }
+  </script>
+  <link rel="icon" href="assets/parking.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <script defer src="js/state.js"></script>
+  <script defer src="js/views.js"></script>
+  <script defer src="js/app.js"></script>
+</head>
+<body>
+  <!-- Navegación compartida entre las páginas del sistema. -->
+  <aside class="sidebar">
+    <a class="brand" href="index.html" aria-label="ParkFlow inicio">
+      <img src="assets/parking.svg" alt="" class="brand-icon">
+      <span>Park<span class="brand-accent">Flow</span><small>GESTIÓN DE PARQUEO</small></span>
+    </a>
+
+    <div class="side-label">MENÚ PRINCIPAL</div>
+    <a class="nav-item active" href="index.html" aria-current="page">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M8 16v-5m4 5V8m4 8v-7m4 7V4"/></svg>
+      Resumen
+    </a>
+    <a class="nav-item" href="vehicles.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg>
+      Vehículos
+    </a>
+    <a class="nav-item" href="spaces.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg>
+      Espacios
+    </a>
+    <a class="nav-item" href="layout.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>
+      Armar parqueo
+    </a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+      <span class="theme-toggle-label">Modo oscuro</span>
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="beta-pill"><span></span> VERSIÓN BETA</div>
+      <p>Proyecto académico<br><strong>Estructuras de Datos</strong></p>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SISTEMA DE ADMINISTRACIÓN</p>
+        <h1>Resumen del parqueo</h1>
+        <p class="subtitle">Consulta la ocupación y registra el ingreso de vehículos.</p>
+      </div>
+      <div class="topbar-right">
+        <span class="status-dot"></span>
+        <span>Sistema local activo</span>
+        <div class="avatar">PF</div>
+      </div>
+    </header>
+
+    <!-- Indicadores generales, actualizados desde el estado compartido. -->
+    <section id="resumen" class="stats-grid" aria-label="Resumen del parqueo">
+      <article class="stat-card">
+        <div class="stat-top"><span>Espacios ocupados</span><span class="stat-icon blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg></span></div>
+        <strong id="occupiedStat">0 <small>/ 12</small></strong>
+        <div class="progress-track"><div id="occupancyBar" class="progress-fill"></div></div>
+        <p id="occupancyText">0% de ocupación</p>
+      </article>
+      <article class="stat-card">
+        <div class="stat-top"><span>Espacios disponibles</span><span class="stat-icon green"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg></span></div>
+        <strong id="availableStat">12</strong>
+        <p class="stat-note">Listos para recibir vehículos</p>
+      </article>
+      <article class="stat-card">
+        <div class="stat-top"><span>Vehículos registrados</span><span class="stat-icon violet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg></span></div>
+        <strong id="totalStat">0</strong>
+        <p class="stat-note">Ingresos activos actualmente</p>
+      </article>
+      <article class="stat-card">
+        <div class="stat-top"><span>En cola de salida</span><span class="stat-icon orange"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div>
+        <strong id="queueStat">0</strong>
+        <p class="stat-note">Pagados · salida en 20 min</p>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <!-- Formulario principal para registrar un ingreso. -->
+      <article id="registro" class="panel form-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">NUEVO INGRESO</p><h2>Registrar vehículo</h2></div>
+          <span class="heading-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14"/></svg></span>
+        </div>
+        <form id="vehicleForm">
+          <label for="plate">Número de placa <span>*</span></label>
+          <input
+            id="plate"
+            name="plate"
+            placeholder="Ej. 4582-ABC"
+            pattern="[0-9]{4,5}-[A-Za-z]{3}"
+            title="Usa 4 o 5 números, un guion y 3 letras. Ejemplo: 4582-ABC"
+            maxlength="9"
+            aria-describedby="plateHint"
+            required
+            autocomplete="off"
+          >
+          <p id="plateHint" class="form-hint field-hint">Formato: NNNN-LLL o NNNNN-LLL.</p>
+
+          <div class="field-row">
+            <div>
+              <label for="vehicleType">Tipo de vehículo <span>*</span></label>
+              <select id="vehicleType" name="vehicleType" required>
+                <option value="" disabled selected>Selecciona un tipo</option>
+                <option value="Automóvil">Automóvil</option>
+                <option value="Motocicleta">Motocicleta</option>
+                <option value="Camioneta">Camioneta</option>
+                <option value="SUV">SUV</option>
+              </select>
+            </div>
+            <div>
+              <label for="vehicleColor">Color <span>*</span></label>
+              <select id="vehicleColor" name="vehicleColor" required>
+                <option value="" disabled selected>Selecciona un color</option>
+                <option>Negro</option>
+                <option>Blanco</option>
+                <option>Gris</option>
+                <option>Plateado</option>
+                <option>Rojo</option>
+                <option>Azul</option>
+                <option>Verde</option>
+                <option>Amarillo</option>
+                <option>Beige</option>
+                <option>Marrón</option>
+                <option>Naranja</option>
+                <option>Morado</option>
+                <option>Dorado</option>
+                <option>Otro</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="vehicleMake">Marca del vehículo <span>*</span></label>
+          <select id="vehicleMake" name="vehicleMake" required>
+            <option value="" disabled selected>Selecciona una marca</option>
+            <option>Acura</option>
+            <option>Alfa Romeo</option>
+            <option>Aston Martin</option>
+            <option>Audi</option>
+            <option>BAIC</option>
+            <option>BAW</option>
+            <option>Beijing</option>
+            <option>Bentley</option>
+            <option>BMW</option>
+            <option>Buick</option>
+            <option>BYD</option>
+            <option>Cadillac</option>
+            <option>Changan</option>
+            <option>Chery</option>
+            <option>Chevrolet</option>
+            <option>Chrysler</option>
+            <option>Citroën</option>
+            <option>Cupra</option>
+            <option>Dacia</option>
+            <option>Daewoo</option>
+            <option>Daihatsu</option>
+            <option>Dodge</option>
+            <option>Dongfeng</option>
+            <option>DS Automobiles</option>
+            <option>Ferrari</option>
+            <option>Fiat</option>
+            <option>Ford</option>
+            <option>Foton</option>
+            <option>GAC</option>
+            <option>Geely</option>
+            <option>Genesis</option>
+            <option>GMC</option>
+            <option>Great Wall</option>
+            <option>Haval</option>
+            <option>Honda</option>
+            <option>Hyundai</option>
+            <option>Infiniti</option>
+            <option>Isuzu</option>
+            <option>Iveco</option>
+            <option>JAC</option>
+            <option>Jaguar</option>
+            <option>Jeep</option>
+            <option>Jetour</option>
+            <option>Kia</option>
+            <option>Lada</option>
+            <option>Lamborghini</option>
+            <option>Lancia</option>
+            <option>Land Rover</option>
+            <option>Lexus</option>
+            <option>Lincoln</option>
+            <option>Lotus</option>
+            <option>Lucid</option>
+            <option>Mahindra</option>
+            <option>Maserati</option>
+            <option>Mazda</option>
+            <option>McLaren</option>
+            <option>Mercedes-Benz</option>
+            <option>MG</option>
+            <option>MINI</option>
+            <option>Mitsubishi</option>
+            <option>NIO</option>
+            <option>Nissan</option>
+            <option>Opel</option>
+            <option>Omoda</option>
+            <option>Peugeot</option>
+            <option>Polestar</option>
+            <option>Porsche</option>
+            <option>RAM</option>
+            <option>Renault</option>
+            <option>Rivian</option>
+            <option>Rolls-Royce</option>
+            <option>SEAT</option>
+            <option>Škoda</option>
+            <option>Smart</option>
+            <option>Subaru</option>
+            <option>Suzuki</option>
+            <option>Tata</option>
+            <option>Tesla</option>
+            <option>Toyota</option>
+            <option>VinFast</option>
+            <option>Volkswagen</option>
+            <option>Volvo</option>
+            <option>Wuling</option>
+            <option>XPeng</option>
+            <option>Xiaomi</option>
+            <option>Zeekr</option>
+            <option value="Otra">Otra marca</option>
+          </select>
+          <input
+            id="otherVehicleMake"
+            name="otherVehicleMake"
+            placeholder="Escribe la marca"
+            maxlength="40"
+            aria-label="Especifica otra marca"
+            hidden
+          >
+          <button class="btn btn-primary full-width" type="submit">＋ Registrar ingreso</button>
+          <p class="form-hint">El ingreso requiere un espacio disponible.</p>
+        </form>
+      </article>
+
+      <!-- Accesos a las vistas de vehículos y espacios. -->
+      <section class="panel quick-links">
+        <div class="panel-heading">
+          <div><p class="eyebrow">NAVEGACIÓN</p><h2>Otras vistas</h2></div>
+          <span class="heading-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5m-9 0h9v9"/></svg></span>
+        </div>
+        <a class="quick-link" href="vehicles.html">
+          <span class="stat-icon violet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg></span>
+          <span><strong>Vehículos</strong><small>Buscar registros y administrar salidas</small></span>
+          <span aria-hidden="true">→</span>
+        </a>
+        <a class="quick-link" href="spaces.html">
+          <span class="stat-icon green"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg></span>
+          <span><strong>Espacios</strong><small>Ver el mapa y la cola de salida</small></span>
+          <span aria-hidden="true">→</span>
+        </a>
+        <a class="quick-link" href="layout.html">
+          <span class="stat-icon blue"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg></span>
+          <span><strong>Armar parqueo</strong><small>Diseñar pisos, espacios y circulación</small></span>
+          <span aria-hidden="true">→</span>
+        </a>
+      </section>
+    </section>
+
+    <footer class="footer">ParkFlow Beta <span>•</span> Datos guardados en este navegador</footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

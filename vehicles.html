@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Consulta y administra los vehículos registrados en ParkFlow.">
+  <title>ParkFlow | Vehículos</title>
+  <script>
+    try {
+      document.documentElement.dataset.theme =
+        localStorage.getItem("parkflow-theme") === "dark" ? "dark" : "light";
+    } catch (error) {
+      document.documentElement.dataset.theme = "light";
+    }
+  </script>
+  <link rel="icon" href="assets/parking.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <script defer src="js/state.js"></script>
+  <script defer src="js/views.js"></script>
+  <script defer src="js/app.js"></script>
+</head>
+<body>
+  <!-- Navegación compartida entre las páginas del sistema. -->
+  <aside class="sidebar">
+    <a class="brand" href="index.html" aria-label="ParkFlow inicio">
+      <img src="assets/parking.svg" alt="" class="brand-icon">
+      <span>Park<span class="brand-accent">Flow</span><small>GESTIÓN DE PARQUEO</small></span>
+    </a>
+
+    <div class="side-label">MENÚ PRINCIPAL</div>
+    <a class="nav-item" href="index.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M8 16v-5m4 5V8m4 8v-7m4 7V4"/></svg>
+      Resumen
+    </a>
+    <a class="nav-item active" href="vehicles.html" aria-current="page">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg>
+      Vehículos
+    </a>
+    <a class="nav-item" href="spaces.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg>
+      Espacios
+    </a>
+    <a class="nav-item" href="layout.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>
+      Armar parqueo
+    </a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+      <span class="theme-toggle-label">Modo oscuro</span>
+    </button>
+
+    <div class="sidebar-bottom">
+      <div class="beta-pill"><span></span> VERSIÓN BETA</div>
+      <p>Proyecto académico<br><strong>Estructuras de Datos</strong></p>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CONTROL DE INGRESOS</p>
+        <h1>Vehículos</h1>
+        <p class="subtitle">Busca vehículos activos, registra salidas y revisa los últimos movimientos.</p>
+      </div>
+      <div class="topbar-right">
+        <span class="status-dot"></span>
+        <span>Sistema local activo</span>
+        <div class="avatar">PF</div>
+      </div>
+    </header>
+
+    <section class="panel table-panel">
+      <div class="panel-heading table-heading">
+        <div><p class="eyebrow">PARQUEO ACTUAL</p><h2>Vehículos en el parqueo</h2></div>
+        <div class="table-tools">
+          <input id="searchInput" class="search-input" type="search" placeholder="Buscar placa, marca o color..." aria-label="Buscar vehículos">
+          <select id="typeFilter" aria-label="Filtrar por tipo">
+            <option value="">Todos los tipos</option>
+            <option>Automóvil</option>
+            <option>Motocicleta</option>
+            <option>Camioneta</option>
+            <option>SUV</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>PLACA</th><th>MARCA</th><th>COLOR</th><th>TIPO</th>
+              <th>ESPACIO</th><th>HORA DE INGRESO</th><th>ESTADO</th><th>ACCIÓN</th>
+            </tr>
+          </thead>
+          <tbody id="vehicleTable">
+            <tr><td colspan="8" class="table-empty">Todavía no hay vehículos registrados.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span id="tableCount">0 vehículos activos</span>
+        <div class="table-footer-actions">
+          <button id="undoExit" class="btn btn-quiet" type="button" disabled>↶ Deshacer última salida</button>
+          <button id="clearHistory" class="btn btn-quiet" type="button">Restablecer demo</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">LISTA ENLAZADA</p>
+          <h2>Últimos movimientos</h2>
+          <p class="subtitle">Historial cronológico de ingresos, pagos y salidas.</p>
+        </div>
+        <span class="heading-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4.8 9a7.5 7.5 0 0 1 12.6-2L20 12m-.8 3a7.5 7.5 0 0 1-12.6 2L4 12"/></svg></span>
+      </div>
+      <div id="historyList" class="history-list">
+        <div class="empty-state">Todavía no hay movimientos registrados.</div>
+      </div>
+    </section>
+
+    <footer class="footer">ParkFlow Beta <span>•</span> Datos guardados en este navegador</footer>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="confirmDialog" class="confirm-dialog">
+    <form method="dialog">
+      <h3>¿Restablecer la demo?</h3>
+      <p>Se eliminarán los vehículos activos y los movimientos guardados en este navegador.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-quiet" value="cancel">Cancelar</button>
+        <button id="confirmReset" class="btn btn-danger" value="confirm">Restablecer</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
