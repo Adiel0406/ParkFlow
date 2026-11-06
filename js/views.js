@@ -179,53 +179,11 @@
     }
   }
 
-  class HistoryNode {
-    constructor(event) {
-      this.event = event;
-      this.next = null;
-    }
-  }
-
-  class LinkedHistory {
-    constructor(events) {
-      this.head = null;
-      this.tail = null;
-
-      events.forEach((event) => this.append(event));
-    }
-
-    append(event) {
-      const node = new HistoryNode(event);
-
-      if (!this.head) {
-        this.head = node;
-      } else {
-        this.tail.next = node;
-      }
-
-      this.tail = node;
-    }
-
-    toArray(limit) {
-      const output = [];
-      let current = this.head;
-
-      while (current && output.length < limit) {
-        output.push(current.event);
-        current = current.next;
-      }
-
-      return output;
-    }
-  }
-
   function renderHistory(state) {
     const historyList = $("#historyList");
     if (!historyList) return;
 
-    // Lista enlazada simple: cada nodo conserva un movimiento y el siguiente nodo.
-    const linkedHistory = new LinkedHistory(state.historyEvents);
-    const events = linkedHistory.toArray(8);
+    const events = state.historyEvents.slice(0, 8);
 
     historyList.innerHTML = events.length
       ? events.map((event) => {

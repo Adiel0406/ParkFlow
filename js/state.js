@@ -32,7 +32,7 @@
   // Pila (Stack): cada salida se apila y la última salida se revierte primero.
   let undoStack = [];
 
-  // Arreglo cronológico de eventos usado para reconstruir la lista enlazada.
+  // Arreglo de los últimos movimientos, compartido por todas las páginas.
   let historyEvents = [];
   let layout = DEFAULT_LAYOUT;
 
@@ -156,18 +156,14 @@
   }
 
   function indexes() {
-    // Set: permite comprobar que una placa no esté repetida.
-    const plates = new Set();
-
-    // Tabla hash: Map indexa placa -> vehículo para consultas promedio O(1).
+    // Map permite consultar si una placa ya está activa.
     const vehicleByPlate = new Map();
 
     vehicles.forEach((vehicle) => {
-      plates.add(vehicle.plate);
       vehicleByPlate.set(vehicle.plate, vehicle);
     });
 
-    return { plates, vehicleByPlate };
+    return vehicleByPlate;
   }
 
   function nextFreeSpace() {
@@ -229,9 +225,9 @@
       return false;
     }
 
-    const index = indexes();
+    const vehicleByPlate = indexes();
 
-    if (index.plates.has(plate) || index.vehicleByPlate.has(plate)) {
+    if (vehicleByPlate.has(plate)) {
       window.ParkFlow.showToast("Esa placa ya está registrada en el parqueo.");
       document.querySelector("#plate")?.focus();
       return false;

@@ -38,19 +38,19 @@ El botón «Modo oscuro» de la navegación cambia el tema en todas las páginas
 
 ## Estructuras implementadas y por qué
 
-1. **Array — vehículos activos.** Práctico para recorrer y mostrar los registros. Agregar al final: O(1) amortizado; búsqueda/eliminación por ID: O(n).
-2. **Set — placas registradas.** Impide placas duplicadas entre vehículos activos. `has()` es O(1) promedio.
-3. **Tabla hash con `Map` — índice placa → vehículo y espacio → vehículo.** La consulta por clave es O(1) promedio; el peor caso teórico puede ser O(n). Los índices se reconstruyen desde los arreglos, lo cual cuesta O(n).
-4. **Arreglo ordenado — tabla de vehículos.** En `js/views.js` se filtra y ordena una copia por espacio y placa. El ordenamiento típico es O(n log n). Se copia para no alterar el arreglo original.
-5. **Lista enlazada simple — historial.** En `js/views.js`, cada nodo conserva un evento y un enlace al siguiente. El historial se recorre para mostrar los movimientos más recientes.
-6. **Stack / pila — deshacer la última salida.** En `js/state.js`, cada salida se agrega con `push()` y “Deshacer última salida” la recupera con `pop()`. La pila sigue LIFO y ambas operaciones son O(1) amortizado.
+- **Arreglos — vehículos activos, historial, pisos y celdas.** Son apropiados porque la aplicación recorre y muestra estos datos con frecuencia, los persiste fácilmente como JSON en `localStorage` y trabaja con colecciones acotadas. Agregar al final suele ser O(1) amortizado; buscar o eliminar por valor es O(n). El historial conserva como máximo 50 eventos.
+- **`Map` — consultas por placa y espacio.** Se usa para comprobar placas activas y relacionar espacios con vehículos. Consultar una clave tiene costo promedio O(1), pero los mapas se reconstruyen desde los vehículos en cada operación: construirlos cuesta O(n). Por eso, no se presenta como una mejora global de O(1), sino como un índice conveniente para las consultas por clave.
+- **`Set` — validación de la configuración del plano.** Comprueba que los tipos de celda permitidos sean válidos y que no se repitan los identificadores de piso. Es adecuado para validar pertenencia y unicidad, con costo promedio O(1) por consulta.
+- **Pila (LIFO) — deshacer la última salida.** En `js/state.js`, `push()` guarda cada salida y `pop()` recupera la más reciente. La regla “última salida, primera en revertirse” coincide directamente con el comportamiento de deshacer; estas operaciones son O(1) amortizado.
 
-Los comentarios de `js/state.js` y `js/views.js` identifican las estructuras y explican qué rol cumplen en el flujo del sistema.
+El historial se mantiene como arreglo y se representa directamente desde ese arreglo en `js/views.js`. No se construye una lista enlazada temporal: para este caso, la lista enlazada agregaba nodos y recorridos sin aportar una ventaja frente al arreglo, que ya es la estructura persistida y consultada.
+
+La tabla de vehículos se filtra y ordena una copia, sin modificar los datos originales. Ordenar cuesta típicamente O(n log n); la búsqueda por texto es O(n).
 
 ## Búsqueda y notación Big O
-- Búsqueda por placa exacta en una tabla hash: O(1) promedio, aunque reconstruir el índice completo cuesta O(n).
+- Búsqueda por placa: O(n) total al reconstruir el `Map` desde los vehículos activos; consultar la clave dentro del `Map` es O(1) promedio.
 - Búsqueda por texto libre (placa, marca, color o tipo): O(n), porque se revisan registros.
-- Encontrar un espacio libre: O(m), donde `m` es el número de espacios configurados en el mapa.
+- Encontrar un espacio libre: O(n + m), donde `n` es el número de vehículos para construir el índice y `m` el número de espacios que se revisan.
 - Ordenar registros para mostrarlos: O(n log n).
 - No se usa un algoritmo O(n²) intencionalmente; se evita comparar cada registro contra todos los demás.
 
