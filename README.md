@@ -9,6 +9,7 @@ ParqueoBeta/
 ├── index.html
 ├── vehicles.html
 ├── spaces.html
+├── tariff.html
 ├── layout.html
 ├── assets/parking.svg
 ├── css/
@@ -24,11 +25,11 @@ ParqueoBeta/
 └── README.md
 ```
 
-`index.html` contiene el resumen y el formulario de ingreso; `vehicles.html` permite buscar vehículos, cobrar estadías y registrar salidas; `spaces.html` muestra el mapa, el tarifario y la cola de confirmación de salida; `layout.html` permite diseñar el parqueo. Los archivos JavaScript se cargan en este orden: primero el estado y las estructuras, luego el renderizado y finalmente los eventos.
+`index.html` contiene el resumen y el formulario de ingreso; `vehicles.html` permite buscar vehículos, emitir facturas y registrar salidas; `spaces.html` muestra el mapa y la cola de confirmación de salida; `tariff.html` permite modificar tarifas e intervalos; `layout.html` permite diseñar el parqueo. Los archivos JavaScript se cargan en este orden: primero el estado y las estructuras, luego el renderizado y finalmente los eventos.
 
 En «Armar parqueo» se configuran hasta 5 subsuelos y 10 niveles desde la planta baja, con una cuadrícula de hasta 20 × 20 por piso. Se pueden dibujar espacios, pasillos, entradas, rampas, rampas circulares y celdas vacías. La capacidad se calcula a partir de las celdas marcadas como espacio. Para guardar cambios en el plano, todos los vehículos deben haber registrado su salida. El diseño y los datos se guardan en el mismo `localStorage`.
 
-La estadía se cobra por hora iniciada, con mínimo de una hora: Bs 3 para motocicletas, Bs 5 para automóviles y Bs 7 para camionetas y SUV. Después del pago, el vehículo permanece ocupando su espacio y entra en la cola de confirmación de salida por 20 minutos. Si no se registra la salida en ese plazo, el sistema solicita un nuevo cobro calculado desde el ingreso original.
+El tarifario es común a todos los tipos de vehículo y se configura en «Tarifario» con rangos «De / Hasta», cada límite expresado en minutos u horas, y un monto fijo en bolivianos. El primer rango inicia en 0; los demás comienzan exactamente donde termina el rango anterior y deben tener un límite final mayor. Se cobra el monto fijo del rango en que cae la estadía; al superar el último límite, se mantiene el monto del último rango. Los extremos superiores son inclusivos, por lo que un tiempo exactamente igual al límite se cobra con el rango que termina en ese límite. Por defecto, los rangos son de 0 a 30 min por Bs 2,50, de 30 a 60 min por Bs 2,50 y de 60 a 120 min por Bs 5,00. La configuración se conserva en `localStorage`. Al pulsar «Ver factura» en «Vehículos» se muestra el rango y monto antes de confirmar el pago y se pueden ingresar NIT, nombre y correo, todos opcionales. Cancelar requiere confirmación y no registra el pago. Después de confirmar el cobro, el vehículo entra en la cola de salida por 10 minutos. Si no se confirma la salida en ese plazo, se solicita un nuevo cobro calculado desde el ingreso original.
 
 El logo `assets/parking.svg` se usa como identidad visual y favicon. La interfaz se adapta a escritorio, tabletas y celulares mediante `css/responsive.css`; en pantallas pequeñas la navegación se coloca arriba del contenido y las tablas pueden desplazarse horizontalmente.
 
@@ -41,7 +42,9 @@ El botón «Modo oscuro» de la navegación cambia el tema en todas las páginas
 - **Arreglos — vehículos activos, historial, pisos y celdas.** Son apropiados porque la aplicación recorre y muestra estos datos con frecuencia, los persiste fácilmente como JSON en `localStorage` y trabaja con colecciones acotadas. Agregar al final suele ser O(1) amortizado; buscar o eliminar por valor es O(n). El historial conserva como máximo 50 eventos.
 - **`Map` — consultas por placa y espacio.** Se usa para comprobar placas activas y relacionar espacios con vehículos. Consultar una clave tiene costo promedio O(1), pero los mapas se reconstruyen desde los vehículos en cada operación: construirlos cuesta O(n). Por eso, no se presenta como una mejora global de O(1), sino como un índice conveniente para las consultas por clave.
 - **`Set` — validación de la configuración del plano.** Comprueba que los tipos de celda permitidos sean válidos y que no se repitan los identificadores de piso. Es adecuado para validar pertenencia y unicidad, con costo promedio O(1) por consulta.
-- **Pila (LIFO) — deshacer la última salida.** En `js/state.js`, `push()` guarda cada salida y `pop()` recupera la más reciente. La regla “última salida, primera en revertirse” coincide directamente con el comportamiento de deshacer; estas operaciones son O(1) amortizado.
+- **Pila (LIFO) — deshacer la última salida.** La última salida guarda temporalmente la información del vehículo y del pago; al deshacer, se recupera esa salida conservando el `paidAt` original. Así vuelve al estado de confirmación con solo el tiempo que le quedaba dentro de los 10 minutos.
+
+El cobro no se registra mientras la factura está abierta. Si se cancela y se confirma la cancelación, el vehículo queda pendiente y no se agrega un evento de pago al historial. La pila de salidas permite restaurar el pago original y su hora, sin reiniciar el contador de 10 minutos.
 
 El historial se mantiene como arreglo y se representa directamente desde ese arreglo en `js/views.js`. No se construye una lista enlazada temporal: para este caso, la lista enlazada agregaba nodos y recorridos sin aportar una ventaja frente al arreglo, que ya es la estructura persistida y consultada.
 

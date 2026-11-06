@@ -431,6 +431,165 @@ input::placeholder {
   margin: 11px 0 0;
 }
 
+.tariff-editor-panel label {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 750;
+  color: #56647a;
+}
+
+.tariff-interval-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.tariff-interval-heading h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.tariff-explanation {
+  max-width: 700px;
+  margin: 8px 0 16px;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.interval-list {
+  display: grid;
+  gap: 9px;
+  max-width: 900px;
+}
+
+.interval-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.65fr) minmax(190px, 1.4fr) minmax(190px, 1.4fr) minmax(120px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.interval-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.interval-boundary {
+  grid-template-columns: minmax(0, 1fr) minmax(82px, 0.9fr);
+  align-items: center;
+}
+
+.interval-field label {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.interval-row button {
+  min-width: 80px;
+}
+
+.interval-row input,
+.interval-row select,
+.invoice-customer-fields input {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.interval-row input[readonly],
+.interval-row select:disabled {
+  opacity: 0.75;
+}
+
+.open-interval-label {
+  max-width: 560px;
+  margin: 14px 0 20px;
+  text-align: left;
+}
+
+.invoice-dialog {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.invoice-details {
+  margin: 18px 0;
+}
+
+.invoice-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.invoice-details dt {
+  color: var(--muted);
+}
+
+.invoice-details dd {
+  margin: 0;
+  font-weight: 650;
+  text-align: right;
+}
+
+.invoice-breakdown-row {
+  align-items: flex-start;
+}
+
+.invoice-breakdown-row dd {
+  flex: 1;
+}
+
+.invoice-breakdown-row ul {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.invoice-customer-fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 14px 0 18px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.invoice-customer-fields legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.invoice-customer-fields label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.invoice-details .invoice-total {
+  font-size: 18px;
+  border-bottom: 0;
+}
+
+.invoice-total dd {
+  color: var(--blue);
+}
+
 /* =========================================================
    MAPA DE ESPACIOS
    ========================================================= */

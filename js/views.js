@@ -47,7 +47,15 @@
     if ($("#capacityLabel")) {
       $("#capacityLabel").textContent = `${capacity} espacios`;
     }
-    if ($("#undoExit")) $("#undoExit").disabled = !state.undoStack.length;
+    if ($("#undoExit")) $("#undoExit").disabled = !state.exitStack.length;
+    const tariffSummary = $("#tariffSummary");
+    if (tariffSummary) {
+      tariffSummary.innerHTML = state.billingIntervals.map((interval, index) => {
+        const formatBoundary = ({ value, unit }) => `${escapeHtml(value)} ${unit === "hours" ? "h" : "min"}`;
+        const extended = index === state.billingIntervals.length - 1 ? " y posteriores" : "";
+        return `<tr><td>${formatBoundary(interval.from)}</td><td>${formatBoundary(interval.to)}${extended}</td><td>Bs ${interval.amount.toFixed(2)}</td></tr>`;
+      }).join("");
+    }
   }
 
   function renderParkingGrid(state) {
@@ -154,10 +162,10 @@
           const charge = window.ParkFlow.getStayCharge(vehicle);
           const action = vehicle.paidAt
             ? `<button class="btn btn-exit" type="button" data-exit="${escapeHtml(vehicle.id)}">Confirmar salida</button>`
-            : `<button class="btn btn-primary" type="button" data-pay="${escapeHtml(vehicle.id)}">Cobrar Bs ${charge.total}</button>`;
+            : `<button class="btn btn-primary" type="button" data-pay="${escapeHtml(vehicle.id)}">Ver factura · Bs ${charge.total.toFixed(2)}</button>`;
           const status = vehicle.paidAt
             ? `Pagado · ${Math.max(0, Math.ceil((window.ParkFlow.getExitWindow() - (Date.now() - new Date(vehicle.paidAt).getTime())) / 60000))} min para salir`
-            : `Pendiente · Bs ${charge.hourlyRate}/h`;
+            : `Pendiente · Bs ${charge.total.toFixed(2)} estimado`;
           return `
           <tr>
             <td class="plate-cell">${escapeHtml(vehicle.plate)}</td>
@@ -188,7 +196,7 @@
     historyList.innerHTML = events.length
       ? events.map((event) => {
           const kind = event.type === "exit" ? "exit" : event.type === "paymentDue" ? "wait" : "";
-          const symbol = event.type === "exit" ? "↙" : event.type === "payment" ? "Bs" : event.type === "paymentDue" ? "!" : "↗";
+          const symbol = event.type === "exit" ? "↙" : event.type === "payment" ? "Bs" : event.type === "paymentDue" ? "!" : event.type === "paymentUndone" ? "↶" : event.type === "paymentRestored" ? "↻" : event.type === "exitUndone" ? "↶" : "↗";
 
           return `
             <div class="history-row">

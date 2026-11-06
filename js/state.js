@@ -7,6 +7,11 @@
 
 (() => {
   const STORAGE_KEY = "parkflow-beta-v2";
+  const DEFAULT_BILLING_INTERVALS = [
+    { from: { value: 0, unit: "minutes" }, to: { value: 30, unit: "minutes" }, amount: 2.5 },
+    { from: { value: 30, unit: "minutes" }, to: { value: 60, unit: "minutes" }, amount: 2.5 },
+    { from: { value: 60, unit: "minutes" }, to: { value: 120, unit: "minutes" }, amount: 5 },
+  ];
   const DEFAULT_LAYOUT = {
     floors: [{
       id: "PB",
@@ -21,16 +26,11 @@
   // Se recorre para renderizar, buscar y retirar un vehículo activo.
   let vehicles = [];
 
-  const EXIT_CONFIRMATION_WINDOW = 20 * 60 * 1000;
-  const HOURLY_RATES = {
-    Automóvil: 5,
-    Motocicleta: 3,
-    Camioneta: 7,
-    SUV: 7,
-  };
+  const EXIT_CONFIRMATION_WINDOW = 10 * 60 * 1000;
+  let billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({ ...interval }));
 
-  // Pila (Stack): cada salida se apila y la última salida se revierte primero.
-  let undoStack = [];
+  // Pila LIFO para revertir únicamente la salida más reciente.
+  let exitStack = [];
 
   // Arreglo de los últimos movimientos, compartido por todas las páginas.
   let historyEvents = [];
@@ -125,8 +125,48 @@
         }
         // Completa atributos nuevos para conservar datos guardados previamente.
         vehicles = saved.vehicles.map((vehicle) => normalizeVehicle(vehicle));
-        undoStack = Array.isArray(saved.undoStack)
-          ? saved.undoStack.map((vehicle) => normalizeVehicle(vehicle))
+        if (isValidBillingIntervals(saved.billingIntervals)) {
+          billingIntervals = saved.billingIntervals.map((interval) => ({ ...interval }));
+        } else if (Array.isArray(saved.billingIntervals) && saved.billingIntervals.every((interval) =>
+          interval && Number.isFinite(interval.duration) && interval.duration > 0
+          && ["minutes", "hours"].includes(interval.unit)
+          && Number.isFinite(interval.amount) && interval.amount >= 0)) {
+          let previousEndMinutes = 0;
+          billingIntervals = saved.billingIntervals.map((interval) => {
+            const durationMinutes = interval.duration * (interval.unit === "hours" ? 60 : 1);
+            const from = { value: previousEndMinutes, unit: "minutes" };
+            const to = { value: previousEndMinutes + durationMinutes, unit: "minutes" };
+            previousEndMinutes += durationMinutes;
+            return { from, to, amount: interval.amount };
+          });
+        } else if (Array.isArray(saved.billingIntervals) && saved.billingIntervals.every(Number.isFinite)) {
+          const previousRate = Number.isFinite(saved.hourlyRates?.Automóvil) ? saved.hourlyRates.Automóvil : 5;
+          let previousEnd = 0;
+          billingIntervals = saved.billingIntervals.map((end) => {
+            const start = previousEnd;
+            previousEnd = end;
+            return {
+              from: { value: start, unit: "minutes" },
+              to: { value: end, unit: "minutes" },
+              amount: Math.round(previousRate * (end - start) / 60 * 100) / 100,
+            };
+          }).filter((interval) => interval.to.value > interval.from.value);
+          if (!billingIntervals.length) {
+            billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({ ...interval }));
+          }
+        } else if (Array.isArray(saved.billingIntervals)) {
+          billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({ ...interval }));
+        }
+        if (!isValidBillingIntervals(billingIntervals)) {
+          billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({
+            ...interval,
+            from: { ...interval.from },
+            to: { ...interval.to },
+          }));
+        }
+        const savedExitStack = Array.isArray(saved.exitStack) ? saved.exitStack : saved.undoStack;
+        exitStack = Array.isArray(savedExitStack)
+          ? savedExitStack.map((vehicle) => normalizeVehicle(vehicle))
           : [];
         historyEvents = Array.isArray(saved.historyEvents)
           ? saved.historyEvents.filter((event) => event.type !== "wait")
@@ -140,15 +180,52 @@
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       vehicles,
-      undoStack,
+      exitStack,
       historyEvents,
       layout,
+      billingIntervals,
     }));
   }
 
   function getState() {
     expirePayments();
-    return { vehicles, departureQueue: vehicles.filter((vehicle) => vehicle.paidAt), undoStack, historyEvents, layout };
+    return {
+      vehicles,
+      departureQueue: vehicles.filter((vehicle) => vehicle.paidAt),
+      exitStack,
+      historyEvents,
+      layout,
+      billingIntervals: billingIntervals.map((interval) => ({
+        from: { ...interval.from },
+        to: { ...interval.to },
+        amount: interval.amount,
+      })),
+    };
+  }
+
+  function isValidBillingIntervals(intervals) {
+    if (!Array.isArray(intervals) || intervals.length === 0) return false;
+
+    return intervals.every((interval, index) => {
+      if (!interval
+        || !interval.from
+        || !interval.to
+        || !Number.isFinite(interval.from.value)
+        || !Number.isFinite(interval.to.value)
+        || !["minutes", "hours"].includes(interval.from.unit)
+        || !["minutes", "hours"].includes(interval.to.unit)
+        || !Number.isFinite(interval.amount)
+        || interval.amount < 0) return false;
+
+      const startMinutes = interval.from.value * (interval.from.unit === "hours" ? 60 : 1);
+      const endMinutes = interval.to.value * (interval.to.unit === "hours" ? 60 : 1);
+      if (startMinutes < 0 || endMinutes <= startMinutes) return false;
+      if (index === 0) return startMinutes === 0;
+
+      const previous = intervals[index - 1];
+      const previousEndMinutes = previous.to.value * (previous.to.unit === "hours" ? 60 : 1);
+      return Math.abs(startMinutes - previousEndMinutes) < 1e-9;
+    });
   }
 
   function normalizePlate(value) {
@@ -191,9 +268,45 @@
   }
 
   function getStayCharge(vehicle, now = Date.now()) {
-    const hourlyRate = HOURLY_RATES[vehicle.type] || HOURLY_RATES.Automóvil;
-    const elapsedHours = Math.max(1, Math.ceil((now - new Date(vehicle.enteredAt).getTime()) / (60 * 60 * 1000)));
-    return { hourlyRate, elapsedHours, total: hourlyRate * elapsedHours };
+    const elapsedMinutes = Math.max(0, (now - new Date(vehicle.enteredAt).getTime()) / 60000);
+    const intervalIndex = billingIntervals.findIndex((interval) => {
+      const endMinutes = interval.to.value * (interval.to.unit === "hours" ? 60 : 1);
+      return elapsedMinutes <= endMinutes;
+    });
+    const selectedIndex = intervalIndex < 0 ? billingIntervals.length - 1 : intervalIndex;
+    const selectedInterval = billingIntervals[selectedIndex];
+    const formatBoundary = ({ value, unit }) => `${value} ${unit === "hours" ? "h" : "min"}`;
+    const label = `De ${formatBoundary(selectedInterval.from)} hasta ${formatBoundary(selectedInterval.to)}`;
+
+    return {
+      elapsedMinutes,
+      billableMinutes: elapsedMinutes,
+      total: selectedInterval.amount,
+      intervalCharges: [{
+        label: elapsedMinutes > selectedInterval.to.value * (selectedInterval.to.unit === "hours" ? 60 : 1)
+          ? `${label} (tarifa extendida)`
+          : label,
+        durationMinutes: elapsedMinutes,
+        amount: selectedInterval.amount,
+      }],
+    };
+  }
+
+  function saveTariffConfig(intervals) {
+    if (!isValidBillingIntervals(intervals)) {
+      window.ParkFlow.showToast("Los intervalos deben empezar en 0, tener límites crecientes y continuos, unidades válidas y montos no negativos.");
+      return false;
+    }
+
+    billingIntervals = intervals.map((interval) => ({
+      from: { value: Number(interval.from.value), unit: interval.from.unit },
+      to: { value: Number(interval.to.value), unit: interval.to.unit },
+      amount: Number(interval.amount),
+    }));
+    saveState();
+    window.ParkFlow.render();
+    window.ParkFlow.showToast("El tarifario y sus intervalos se guardaron correctamente.");
+    return true;
   }
 
   function expirePayments(now = Date.now()) {
@@ -202,7 +315,7 @@
       if (!vehicle.paidAt || now - new Date(vehicle.paidAt).getTime() < EXIT_CONFIRMATION_WINDOW) return;
       vehicle.paidAt = null;
       vehicle.paidAmount = null;
-      addHistory("paymentDue", `${vehicle.plate} requiere un nuevo cobro`, "Venció el plazo de 20 minutos para registrar la salida");
+      addHistory("paymentDue", `${vehicle.plate} requiere un nuevo cobro`, "Venció el plazo de 10 minutos para registrar la salida");
       changed = true;
     });
     if (changed) saveState();
@@ -261,18 +374,57 @@
     return true;
   }
 
-  function registerPayment(id) {
+  function createInvoice(id) {
     expirePayments();
     const vehicle = vehicles.find((item) => item.id === id);
-    if (!vehicle || vehicle.paidAt) return;
+    if (!vehicle || vehicle.paidAt) return null;
 
     const charge = getStayCharge(vehicle);
-    vehicle.paidAt = new Date().toISOString();
+    return {
+      vehicleId: vehicle.id,
+      plate: vehicle.plate,
+      make: vehicle.make,
+      type: vehicle.type,
+      color: vehicle.color,
+      enteredAt: vehicle.enteredAt,
+      elapsedMinutes: charge.elapsedMinutes,
+      billableMinutes: charge.billableMinutes,
+      total: charge.total,
+      intervalCharges: charge.intervalCharges,
+    };
+  }
+
+  function confirmPayment(id, expectedAmount, customer = {}) {
+    expirePayments();
+    const vehicle = vehicles.find((item) => item.id === id);
+    if (!vehicle) {
+      window.ParkFlow.showToast("No se encontró el vehículo para confirmar el cobro.");
+      return false;
+    }
+    if (vehicle.paidAt) {
+      window.ParkFlow.showToast("El vehículo ya tiene un cobro registrado.");
+      return false;
+    }
+
+    const charge = getStayCharge(vehicle);
+    if (charge.total !== expectedAmount) {
+      window.ParkFlow.showToast("El importe de la factura cambió. Revisa la factura actualizada antes de cobrar.");
+      return false;
+    }
+
+    const paidAt = new Date().toISOString();
+    vehicle.paidAt = paidAt;
     vehicle.paidAmount = charge.total;
-    addHistory("payment", `${vehicle.plate} pagó Bs ${charge.total}`, `${charge.elapsedHours} h × Bs ${charge.hourlyRate}/h · salida antes de 20 min`);
+    vehicle.invoiceCustomer = {
+      nit: String(customer.nit || "").trim(),
+      name: String(customer.name || "").trim(),
+      email: String(customer.email || "").trim(),
+    };
+    addHistory("payment", `${vehicle.plate} pagó Bs ${charge.total}`, `${charge.billableMinutes.toFixed(1)} min facturados · salida antes de 10 min`);
     saveState();
     window.ParkFlow.render();
-    window.ParkFlow.showToast(`Pago registrado: Bs ${charge.total}. Confirma la salida en 20 minutos.`);
+    window.ParkFlow.showToast(`Pago registrado: Bs ${charge.total}. Confirma la salida en 10 minutos.`);
+    return true;
   }
 
   function releaseVehicle(id) {
@@ -290,8 +442,8 @@
 
     const [vehicle] = vehicles.splice(vehicleIndex, 1);
 
-    // Stack LIFO: push registra esta salida para que pop pueda deshacerla.
-    undoStack.push({ ...vehicle, exitedAt: new Date().toISOString() });
+    // Stack LIFO: conserva el vehículo pagado para revertir esta salida.
+    exitStack.push({ ...vehicle, exitedAt: new Date().toISOString() });
     addHistory("exit", `${vehicle.plate} salió del parqueo`, `Se liberó ${formatSpace(vehicle)}`);
 
     const message = `Salida registrada para ${vehicle.plate}.`;
@@ -302,42 +454,40 @@
   }
 
   function undoLastExit() {
-    if (!undoStack.length) {
-      return;
-    }
+    if (!exitStack.length) return;
 
-    // Pila LIFO: pop recupera la última salida guardada.
-    const vehicle = undoStack.pop();
-
+    const vehicle = exitStack.pop();
     if (indexes().has(vehicle.plate)) {
-      undoStack.push(vehicle);
+      exitStack.push(vehicle);
       window.ParkFlow.showToast("No se puede deshacer: la placa ya está activa.");
       return;
     }
 
-    const space = nextFreeSpace();
-
-    if (space === null) {
-      undoStack.push(vehicle);
+    const occupiedSlots = new Set(vehicles.map((item) => item.slot));
+    const originalSpace = getParkingSpaces().find((space) =>
+      space.slot === vehicle.slot && !occupiedSlots.has(space.slot));
+    const space = originalSpace || nextFreeSpace();
+    if (!space) {
+      exitStack.push(vehicle);
       window.ParkFlow.showToast("No se puede deshacer: el parqueo está lleno.");
       return;
     }
 
+    delete vehicle.exitedAt;
     assignSpace(vehicle, space);
-    vehicle.enteredAt = new Date().toISOString();
-    vehicle.paidAt = null;
-    vehicle.paidAmount = null;
     vehicles.push(vehicle);
-    addHistory("entry", `Se revirtió la salida de ${vehicle.plate}`, `${vehicle.make} ${vehicle.type} · ${vehicle.color} · ${formatSpace(vehicle)}`);
+    const remaining = Math.max(0, EXIT_CONFIRMATION_WINDOW - (Date.now() - new Date(vehicle.paidAt).getTime()));
+    const remainingMinutes = Math.ceil(remaining / 60000);
+    addHistory("exitUndone", `Se revirtió la salida de ${vehicle.plate}`, `Se conservó el pago de Bs ${vehicle.paidAmount} y el tiempo restante (${remainingMinutes} min) · ${formatSpace(vehicle)}`);
 
     saveState();
     window.ParkFlow.render();
-    window.ParkFlow.showToast(`Se deshizo la última salida de ${vehicle.plate}.`);
+    window.ParkFlow.showToast(`Se revirtió la salida de ${vehicle.plate}. Se mantiene el tiempo restante para confirmar.`);
   }
 
   function resetDemo() {
     vehicles = [];
-    undoStack = [];
+    exitStack = [];
     historyEvents = [];
 
     saveState();
@@ -376,11 +526,19 @@
     },
     getState,
     registerVehicle,
-    registerPayment,
     releaseVehicle,
     getStayCharge,
     getExitWindow: () => EXIT_CONFIRMATION_WINDOW,
-    hourlyRates: HOURLY_RATES,
+    createInvoice,
+    confirmPayment,
+    get billingIntervals() {
+      return billingIntervals.map((interval) => ({
+        from: { ...interval.from },
+        to: { ...interval.to },
+        amount: interval.amount,
+      }));
+    },
+    saveTariffConfig,
     undoLastExit,
     resetDemo,
     saveLayout,

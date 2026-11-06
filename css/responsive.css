@@ -202,6 +202,40 @@
     grid-template-columns: 1fr;
   }
 
+  .tariff-interval-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .interval-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .interval-row > strong {
+    grid-column: 1 / -1;
+  }
+
+  .interval-row > .interval-boundary {
+    grid-column: span 1;
+  }
+
+  .interval-row > .interval-field:not(.interval-boundary) {
+    grid-column: 1;
+  }
+
+  .interval-row button {
+    grid-column: 2;
+    justify-self: end;
+    min-width: 0;
+    padding: 9px;
+  }
+
+  .invoice-dialog .dialog-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
   .layout-save-row {
     align-items: stretch;
     flex-direction: column;

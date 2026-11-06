@@ -44,6 +44,10 @@
       <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg>
       Espacios
     </a>
+    <a class="nav-item" href="tariff.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M8 3v4m8 3v4m-5 3v4"/></svg>
+      Tarifario
+    </a>
     <a class="nav-item" href="layout.html">
       <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>
       Armar parqueo
@@ -88,7 +92,7 @@
       <article class="stat-card">
         <div class="stat-top"><span>En cola de salida</span><span class="stat-icon orange"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></div>
         <strong id="queueStat">0</strong>
-        <p class="stat-note">Pagados · salida en 20 min</p>
+        <p class="stat-note">Pagados · salida en 10 min</p>
       </article>
     </section>
 
@@ -112,20 +116,15 @@
 
     <section class="panel tariff-panel">
       <div class="panel-heading">
-        <div><p class="eyebrow">TARIFARIO</p><h2>Estadía por hora iniciada</h2></div>
+        <div><p class="eyebrow">TARIFARIO</p><h2>Intervalos de cobro</h2></div>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>TIPO DE VEHÍCULO</th><th>TARIFA</th></tr></thead>
-          <tbody>
-            <tr><td>Motocicleta</td><td>Bs 3 por hora</td></tr>
-            <tr><td>Automóvil</td><td>Bs 5 por hora</td></tr>
-            <tr><td>Camioneta</td><td>Bs 7 por hora</td></tr>
-            <tr><td>SUV</td><td>Bs 7 por hora</td></tr>
-          </tbody>
+          <thead><tr><th>DE</th><th>HASTA</th><th>SE COBRA</th></tr></thead>
+          <tbody id="tariffSummary"></tbody>
         </table>
       </div>
-      <p class="form-hint">Se cobra cada hora iniciada, con mínimo de una hora. El espacio se libera al registrar la salida.</p>
+      <p class="form-hint">El tarifario es común a todos los vehículos y se puede modificar desde la opción Tarifario.</p>
     </section>
 
     <section class="panel queue-panel">
@@ -133,7 +132,7 @@
         <div>
           <p class="eyebrow">PAGO REGISTRADO</p>
           <h2>Cola de salida <span class="count-badge" id="queueBadge">0</span></h2>
-          <p class="subtitle">Confirma la salida dentro de los 20 minutos posteriores al pago.</p>
+          <p class="subtitle">Confirma la salida dentro de los 10 minutos posteriores al pago.</p>
         </div>
         <span class="queue-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6m3-3 3 3 5-6"/></svg></span>
       </div>

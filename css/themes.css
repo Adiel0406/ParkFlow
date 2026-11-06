@@ -75,6 +75,18 @@
   color: #d3dae5;
 }
 
+:root[data-theme="dark"] .tariff-editor-panel label {
+  color: #a7b2c2;
+}
+
+:root[data-theme="dark"] .invoice-total dd {
+  color: #a8c5ff;
+}
+
+:root[data-theme="dark"] .interval-row label {
+  color: #cbd5e1;
+}
+
 :root[data-theme="dark"] .btn-quiet:hover {
   background: #3b485b;
 }

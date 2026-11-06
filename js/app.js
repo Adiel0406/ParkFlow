@@ -83,6 +83,29 @@
   }
 
   const vehicleTable = $("#vehicleTable");
+  let pendingInvoice = null;
+
+  function updateInvoice(invoice) {
+    pendingInvoice = invoice;
+    $("#invoicePlate").textContent = invoice.plate;
+    $("#invoiceVehicle").textContent = `${invoice.make} · ${invoice.type} · ${invoice.color}`;
+    $("#invoiceEntryTime").textContent = new Intl.DateTimeFormat("es-BO", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(invoice.enteredAt));
+    $("#invoiceElapsed").textContent = `${Math.ceil(invoice.elapsedMinutes)} min`;
+    $("#invoiceBillingTime").textContent = `${invoice.billableMinutes.toFixed(1)} min`;
+    $("#invoiceTotal").textContent = `Bs ${invoice.total.toFixed(2)}`;
+    $("#invoiceBreakdown").innerHTML = invoice.intervalCharges.map((charge) => {
+      return `<li>${charge.label} · Bs ${charge.amount.toFixed(2)}</li>`;
+    }).join("");
+  }
+
+  function requestInvoiceCancellation() {
+    const confirmation = $("#cancelInvoiceDialog");
+    if (confirmation?.showModal) confirmation.showModal();
+  }
+
   if (vehicleTable) {
     vehicleTable.addEventListener("click", (event) => {
       const target = event.target;
@@ -90,7 +113,14 @@
       const paymentButton = target instanceof Element ? target.closest("[data-pay]") : null;
 
       if (paymentButton) {
-        window.ParkFlow.registerPayment(paymentButton.dataset.pay);
+        const invoice = window.ParkFlow.createInvoice(paymentButton.dataset.pay);
+        if (invoice) {
+          $("#invoiceCustomerNit").value = "";
+          $("#invoiceCustomerName").value = "";
+          $("#invoiceCustomerEmail").value = "";
+          updateInvoice(invoice);
+          $("#invoiceDialog")?.showModal();
+        }
       } else if (exitButton) {
         window.ParkFlow.releaseVehicle(exitButton.dataset.exit);
       }
@@ -100,6 +130,191 @@
   $("#searchInput")?.addEventListener("input", window.ParkFlow.render);
   $("#typeFilter")?.addEventListener("change", window.ParkFlow.render);
   $("#undoExit")?.addEventListener("click", window.ParkFlow.undoLastExit);
+
+  $("#tariffForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formIntervals = [...event.currentTarget.querySelectorAll(".interval-row")].map((row) => ({
+      from: {
+        value: Number(row.querySelector("[data-interval-from]").value),
+        unit: row.querySelector("[data-interval-from-unit]").value,
+      },
+      to: {
+        value: Number(row.querySelector("[data-interval-to]").value),
+        unit: row.querySelector("[data-interval-to-unit]").value,
+      },
+      amount: Number(row.querySelector("[data-interval-amount]").value),
+    }));
+    window.ParkFlow.saveTariffConfig(formIntervals);
+  });
+
+  const intervalList = $("#intervalList");
+  if (intervalList) {
+    let draftIntervals = window.ParkFlow.getState().billingIntervals.map((interval) => ({
+      from: { ...interval.from },
+      to: { ...interval.to },
+      amount: interval.amount,
+    }));
+
+    function convertBoundaryValue(value, fromUnit, toUnit) {
+      const minutes = value * (fromUnit === "hours" ? 60 : 1);
+      return Number((minutes / (toUnit === "hours" ? 60 : 1)).toFixed(6));
+    }
+
+    function readDraftIntervals() {
+      draftIntervals = [...intervalList.querySelectorAll(".interval-row")].map((row) => ({
+        from: {
+          value: Number(row.querySelector("[data-interval-from]").value),
+          unit: row.querySelector("[data-interval-from-unit]").value,
+        },
+        to: {
+          value: Number(row.querySelector("[data-interval-to]").value),
+          unit: row.querySelector("[data-interval-to-unit]").value,
+        },
+        amount: Number(row.querySelector("[data-interval-amount]").value),
+      }));
+    }
+
+    function syncIntervalStarts() {
+      draftIntervals[0].from = { value: 0, unit: "minutes" };
+      for (let index = 1; index < draftIntervals.length; index += 1) {
+        const previousEnd = draftIntervals[index - 1].to;
+        const unit = draftIntervals[index].from.unit;
+        draftIntervals[index].from = {
+          value: convertBoundaryValue(previousEnd.value, previousEnd.unit, unit),
+          unit,
+        };
+      }
+    }
+
+    function renderIntervals() {
+      syncIntervalStarts();
+      intervalList.innerHTML = draftIntervals.map((interval, index) => `
+          <div class="interval-row">
+            <strong>Intervalo ${index + 1}</strong>
+            <div class="interval-field interval-boundary">
+              <label for="interval-from-${index}">De</label>
+              <input id="interval-from-${index}" type="number" min="0" step="any" value="${interval.from.value}" data-interval-from readonly required>
+              <select data-interval-from-unit aria-label="Unidad del inicio del intervalo ${index + 1}">
+                <option value="minutes" ${interval.from.unit === "minutes" ? "selected" : ""}>Minutos</option>
+                <option value="hours" ${interval.from.unit === "hours" ? "selected" : ""}>Horas</option>
+              </select>
+            </div>
+            <div class="interval-field interval-boundary">
+              <label for="interval-to-${index}">Hasta</label>
+              <input id="interval-to-${index}" type="number" min="0.01" step="any" value="${interval.to.value}" data-interval-to required>
+              <select data-interval-to-unit aria-label="Unidad del final del intervalo ${index + 1}">
+                <option value="minutes" ${interval.to.unit === "minutes" ? "selected" : ""}>Minutos</option>
+                <option value="hours" ${interval.to.unit === "hours" ? "selected" : ""}>Horas</option>
+              </select>
+            </div>
+            <div class="interval-field">
+              <label for="interval-amount-${index}">Monto (Bs)</label>
+              <input id="interval-amount-${index}" type="number" min="0" step="0.01" value="${interval.amount}" data-interval-amount required>
+            </div>
+            <button class="btn btn-quiet" type="button" data-remove-interval="${index}" aria-label="Quitar intervalo ${index + 1}" ${draftIntervals.length === 1 ? "disabled" : ""}>Quitar</button>
+          </div>
+        `).join("");
+      $("#openIntervalLabel").textContent = "Se cobra el monto fijo del rango en que cae la estadía. El monto del último rango se mantiene para tiempos mayores.";
+    }
+
+    intervalList.addEventListener("click", (event) => {
+      const button = event.target instanceof Element
+        ? event.target.closest("[data-remove-interval]")
+        : null;
+      if (!button || draftIntervals.length <= 1) return;
+      readDraftIntervals();
+      draftIntervals.splice(Number(button.dataset.removeInterval), 1);
+      syncIntervalStarts();
+      renderIntervals();
+    });
+
+    intervalList.addEventListener("input", (event) => {
+      if (!(event.target instanceof HTMLInputElement) || !event.target.matches("[data-interval-to]")) return;
+      readDraftIntervals();
+      syncIntervalStarts();
+      intervalList.querySelectorAll(".interval-row").forEach((row, index) => {
+        if (index === 0) return;
+        row.querySelector("[data-interval-from]").value = draftIntervals[index].from.value;
+        row.querySelector("[data-interval-from-unit]").value = draftIntervals[index].from.unit;
+      });
+    });
+
+    intervalList.addEventListener("change", (event) => {
+      if (!(event.target instanceof HTMLSelectElement)
+        || !event.target.matches("[data-interval-from-unit], [data-interval-to-unit]")) return;
+      const row = event.target.closest(".interval-row");
+      const index = [...intervalList.querySelectorAll(".interval-row")].indexOf(row);
+      const boundary = event.target.matches("[data-interval-from-unit]") ? "from" : "to";
+      const previousBoundary = draftIntervals[index][boundary];
+      const unit = event.target.value;
+      row.querySelector(`[data-interval-${boundary}]`).value =
+        convertBoundaryValue(previousBoundary.value, previousBoundary.unit, unit);
+      readDraftIntervals();
+      syncIntervalStarts();
+      renderIntervals();
+    });
+
+    $("#addInterval")?.addEventListener("click", () => {
+      readDraftIntervals();
+      syncIntervalStarts();
+      if (draftIntervals.some((interval) => {
+        const fromMinutes = interval.from.value * (interval.from.unit === "hours" ? 60 : 1);
+        const toMinutes = interval.to.value * (interval.to.unit === "hours" ? 60 : 1);
+        return !Number.isFinite(toMinutes) || toMinutes <= fromMinutes
+          || !Number.isFinite(interval.amount) || interval.amount < 0;
+      })) {
+        window.ParkFlow.showToast("Completa cada límite y monto; «Hasta» debe ser mayor que «De».");
+        return;
+      }
+      const lastEnd = draftIntervals[draftIntervals.length - 1].to;
+      const lastEndMinutes = lastEnd.value * (lastEnd.unit === "hours" ? 60 : 1);
+      draftIntervals.push({
+        from: { ...lastEnd },
+        to: { value: lastEndMinutes + 30, unit: "minutes" },
+        amount: 2.5,
+      });
+      renderIntervals();
+    });
+
+    renderIntervals();
+  }
+
+  const invoiceDialog = $("#invoiceDialog");
+  $("#cancelInvoice")?.addEventListener("click", requestInvoiceCancellation);
+  invoiceDialog?.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    requestInvoiceCancellation();
+  });
+  $("#keepInvoice")?.addEventListener("click", () => $("#cancelInvoiceDialog")?.close());
+  $("#confirmInvoiceCancellation")?.addEventListener("click", () => {
+    $("#cancelInvoiceDialog")?.close();
+    invoiceDialog?.close();
+    pendingInvoice = null;
+  });
+  $("#confirmInvoicePayment")?.addEventListener("click", () => {
+    if (!pendingInvoice) return;
+    const email = $("#invoiceCustomerEmail");
+    if (email.value && !email.checkValidity()) {
+      email.reportValidity();
+      return;
+    }
+    const paid = window.ParkFlow.confirmPayment(
+      pendingInvoice.vehicleId,
+      pendingInvoice.total,
+      {
+        nit: $("#invoiceCustomerNit").value,
+        name: $("#invoiceCustomerName").value,
+        email: email.value,
+      },
+    );
+    if (paid) {
+      invoiceDialog?.close();
+      pendingInvoice = null;
+      return;
+    }
+    const refreshedInvoice = window.ParkFlow.createInvoice(pendingInvoice.vehicleId);
+    if (refreshedInvoice) updateInvoice(refreshedInvoice);
+  });
 
   $("#clearHistory")?.addEventListener("click", () => {
     const dialog = $("#confirmDialog");

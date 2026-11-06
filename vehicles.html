@@ -44,6 +44,10 @@
       <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg>
       Espacios
     </a>
+    <a class="nav-item" href="tariff.html">
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M8 3v4m8 3v4m-5 3v4"/></svg>
+      Tarifario
+    </a>
     <a class="nav-item" href="layout.html">
       <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>
       Armar parqueo
@@ -138,6 +142,40 @@
         <button id="confirmReset" class="btn btn-danger" value="confirm">Restablecer</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="invoiceDialog" class="confirm-dialog invoice-dialog">
+    <h3>Factura de estadía</h3>
+    <p>Revisa el detalle antes de confirmar el cobro.</p>
+    <dl class="invoice-details">
+      <div><dt>Placa</dt><dd id="invoicePlate"></dd></div>
+      <div><dt>Vehículo</dt><dd id="invoiceVehicle"></dd></div>
+      <div><dt>Ingreso</dt><dd id="invoiceEntryTime"></dd></div>
+      <div><dt>Tiempo transcurrido</dt><dd id="invoiceElapsed"></dd></div>
+      <div><dt>Tiempo facturado</dt><dd id="invoiceBillingTime"></dd></div>
+      <div class="invoice-breakdown-row"><dt>Detalle del cobro</dt><dd><ul id="invoiceBreakdown"></ul></dd></div>
+      <div class="invoice-total"><dt>Total</dt><dd id="invoiceTotal"></dd></div>
+    </dl>
+    <fieldset class="invoice-customer-fields">
+      <legend>Datos del cliente (opcionales)</legend>
+      <label for="invoiceCustomerNit">NIT</label>
+      <input id="invoiceCustomerNit" type="text" autocomplete="off">
+      <label for="invoiceCustomerName">Nombre</label>
+      <input id="invoiceCustomerName" type="text" autocomplete="name">
+      <label for="invoiceCustomerEmail">Correo</label>
+      <input id="invoiceCustomerEmail" type="email" autocomplete="email">
+    </fieldset>
+    <div class="dialog-actions">
+      <button id="cancelInvoice" class="btn btn-quiet" type="button">Cancelar factura</button>
+      <button id="confirmInvoicePayment" class="btn btn-primary" type="button">Confirmar cobro</button>
+    </div>
+  </dialog>
+  <dialog id="cancelInvoiceDialog" class="confirm-dialog">
+    <h3>¿Cancelar la factura?</h3>
+    <p>El cobro no se registrará y el vehículo seguirá pendiente de pago.</p>
+    <div class="dialog-actions">
+      <button id="keepInvoice" class="btn btn-quiet" type="button">Seguir revisando</button>
+      <button id="confirmInvoiceCancellation" class="btn btn-danger" type="button">Sí, cancelar factura</button>
+    </div>
   </dialog>
 </body>
 </html>
