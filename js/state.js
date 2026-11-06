@@ -309,7 +309,7 @@
     // Pila LIFO: pop recupera la última salida guardada.
     const vehicle = undoStack.pop();
 
-    if (indexes().plates.has(vehicle.plate)) {
+    if (indexes().has(vehicle.plate)) {
       undoStack.push(vehicle);
       window.ParkFlow.showToast("No se puede deshacer: la placa ya está activa.");
       return;
