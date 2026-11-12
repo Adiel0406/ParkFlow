@@ -1,58 +1,40 @@
 "use strict";
 
 (() => {
-  const ACCOUNT_KEY = "parkflow-accounts-v1";
-  const SESSION_KEY = "parkflow-session-v1";
-  const ADMIN_EMAIL = "imanaadiel4@gmail.com";
-  const ADMIN_SALT = "parkflow-admin-v1";
-  const ADMIN_PASSWORD_HASH = "93c687ba4c03bb5114e602c87545ad62f1de9584e0ad94182b7d49c0ae906eb5";
   const ROLE_LABELS = { admin: "Administrador", supervisor: "Supervisor", employee: "Empleado" };
   const currentPage = location.pathname.split("/").pop() || "index.html";
   const isLoginPage = currentPage === "login.html";
   let currentUser = null;
 
-  function readAccounts() {
-    try {
-      const accounts = JSON.parse(localStorage.getItem(ACCOUNT_KEY));
-      return Array.isArray(accounts) ? accounts : [];
-    } catch (error) {
-      return [];
-    }
-  }
-
-  function saveAccounts(accounts) {
-    localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts));
-  }
-
-  function getAccount(email) {
-    return readAccounts().find((account) => account.email === email) || null;
-  }
-
-  function ensureAdminAccount() {
-    const accounts = readAccounts();
-    if (accounts.some((account) => account.email === ADMIN_EMAIL)) return;
-    accounts.push({
-      email: ADMIN_EMAIL,
-      role: "admin",
-      salt: ADMIN_SALT,
-      passwordHash: ADMIN_PASSWORD_HASH,
+  async function api(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers: {
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...options.headers,
+      },
     });
-    saveAccounts(accounts);
+    if (response.status === 204) return null;
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(result.error || "No se pudo completar la solicitud.");
+      error.status = response.status;
+      throw error;
+    }
+    return result;
   }
 
-  function hashPassword(password, salt) {
-    const bytes = new TextEncoder().encode(`${salt}${password}`);
-    return crypto.subtle.digest("SHA-256", bytes).then((digest) =>
-      [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("")
-    );
+  function request(method, body) {
+    return { method, body: JSON.stringify(body) };
   }
 
   function canManageTariff() {
-    return Boolean(currentUser && currentUser.role !== "employee");
+    return !currentUser || currentUser.role !== "employee";
   }
 
   function canManageLayout() {
-    return Boolean(currentUser && currentUser.role === "admin");
+    return !currentUser || currentUser.role === "admin";
   }
 
   function escapeHtml(value) {
@@ -67,31 +49,38 @@
     element.dataset.error = String(isError);
   }
 
-  function renderAccounts() {
+  async function renderAccounts() {
     const accountList = document.querySelector("#accountList");
     if (!accountList) return;
-    const accounts = readAccounts().filter((account) => account.role !== "admin");
-    accountList.innerHTML = accounts.length
-      ? accounts.map((account) => `
-        <tr>
-          <td>${escapeHtml(account.email)}</td>
-          <td>
-            <label class="visually-hidden" for="role-${escapeHtml(account.email)}">Cargo de ${escapeHtml(account.email)}</label>
-            <select id="role-${escapeHtml(account.email)}" data-account-role="${escapeHtml(account.email)}">
-              <option value="supervisor" ${account.role === "supervisor" ? "selected" : ""}>Supervisor</option>
-              <option value="employee" ${account.role === "employee" ? "selected" : ""}>Empleado</option>
-            </select>
-          </td>
-          <td><button class="btn btn-quiet" type="button" data-remove-account="${escapeHtml(account.email)}">Retirar cargo</button></td>
-        </tr>
-      `).join("")
-      : '<tr><td colspan="3" class="table-empty">Todavía no hay cuentas de supervisores o empleados.</td></tr>';
+    try {
+      const { accounts } = await api("/api/accounts");
+      accountList.innerHTML = accounts.length
+        ? accounts.map((account) => `
+          <tr>
+            <td>${escapeHtml(account.first_name)} ${escapeHtml(account.last_name)}</td>
+            <td>${escapeHtml(account.identity_document || "-")}</td>
+            <td>${escapeHtml(account.phone)}</td>
+            <td>${escapeHtml(account.email)}</td>
+            <td>
+              <label class="visually-hidden" for="role-${escapeHtml(account.id)}">Cargo de ${escapeHtml(account.email)}</label>
+              <select id="role-${escapeHtml(account.id)}" data-account-role="${escapeHtml(account.id)}">
+                <option value="supervisor" ${account.role === "supervisor" ? "selected" : ""}>Supervisor</option>
+                <option value="employee" ${account.role === "employee" ? "selected" : ""}>Empleado</option>
+              </select>
+            </td>
+            <td><button class="btn btn-quiet" type="button" data-remove-account="${escapeHtml(account.id)}">Retirar cargo</button></td>
+          </tr>
+        `).join("")
+        : '<tr><td colspan="6" class="table-empty">Todavía no hay cuentas de supervisores o empleados.</td></tr>';
+    } catch (error) {
+      showMessage(document.querySelector("#accountMessage"), error.message);
+    }
   }
 
   function applyPermissions() {
     const roleLabel = ROLE_LABELS[currentUser.role] || "Usuario";
     document.querySelectorAll("[data-auth-user]").forEach((element) => {
-      element.textContent = `${currentUser.email} · ${roleLabel}`;
+      element.textContent = `${currentUser.firstName} ${currentUser.lastName} · ${currentUser.parkingLotName} · ${roleLabel}`;
     });
     document.querySelectorAll("[data-admin-only]").forEach((element) => {
       element.hidden = currentUser.role !== "admin";
@@ -134,7 +123,7 @@
       const identity = document.createElement("span");
       identity.className = "auth-identity";
       identity.dataset.authUser = "";
-      identity.textContent = `${currentUser.email} · ${roleLabel}`;
+      identity.textContent = `${currentUser.firstName} ${currentUser.lastName} · ${currentUser.parkingLotName} · ${roleLabel}`;
       const logout = document.createElement("button");
       logout.className = "btn btn-quiet auth-logout";
       logout.type = "button";
@@ -143,7 +132,7 @@
       topbar.append(identity, logout);
     }
 
-    renderAccounts();
+    if (document.querySelector("#accountList")) renderAccounts();
     document.documentElement.dataset.authPending = "false";
   }
 
@@ -153,26 +142,54 @@
 
   function initializeLogin() {
     const form = document.querySelector("#loginForm");
+    const parkingSelect = document.querySelector("#loginParkingLot");
     if (!form) return;
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const submit = form.querySelector("button[type='submit']");
       submit.disabled = true;
-      const email = String(new FormData(form).get("email")).trim().toLowerCase();
-      const password = String(new FormData(form).get("password"));
-      const account = getAccount(email);
-
+      const data = new FormData(form);
       try {
-        if (!account || await hashPassword(password, account.salt) !== account.passwordHash) {
-          renderLoginError("Correo o contraseña incorrectos.");
+        const result = await api("/api/auth/login", request("POST", {
+          email: data.get("email"),
+          password: data.get("password"),
+          parkingLotId: data.get("parkingLotId"),
+        }));
+        if (result.selectParkingLot) {
+          parkingSelect.replaceChildren(...result.parkingLots.map((lot) => {
+            const option = document.createElement("option");
+            option.value = lot.id;
+            option.textContent = lot.name;
+            return option;
+          }));
+          parkingSelect.hidden = false;
+          parkingSelect.required = true;
+          renderLoginError("Selecciona el parqueo al que deseas ingresar.");
           return;
         }
-        sessionStorage.setItem(SESSION_KEY, account.email);
         const requestedPage = new URLSearchParams(location.search).get("next");
         const validPages = ["index.html", "vehicles.html", "spaces.html", "tariff.html", "layout.html", "accounts.html"];
         location.replace(validPages.includes(requestedPage) ? requestedPage : "index.html");
       } catch (error) {
-        renderLoginError("No se pudo verificar el acceso. Abre ParkFlow desde un servidor local seguro.");
+        renderLoginError(error.message);
+      } finally {
+        submit.disabled = false;
+      }
+    });
+  }
+
+  function initializeParkingRegistration() {
+    const form = document.querySelector("#registerParkingForm");
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const submit = form.querySelector("button[type='submit']");
+      const message = document.querySelector("#registrationMessage");
+      submit.disabled = true;
+      try {
+        await api("/api/auth/register-parking", request("POST", Object.fromEntries(new FormData(form))));
+        location.replace("index.html");
+      } catch (error) {
+        showMessage(message, error.message);
       } finally {
         submit.disabled = false;
       }
@@ -183,84 +200,93 @@
     const form = document.querySelector("#accountForm");
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const data = new FormData(form);
-      const email = String(data.get("email")).trim().toLowerCase();
-      const password = String(data.get("password"));
-      const role = String(data.get("role"));
       const message = document.querySelector("#accountMessage");
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showMessage(message, "Escribe un correo válido.");
-        return;
+      const submit = form.querySelector("button[type='submit']");
+      submit.disabled = true;
+      try {
+        await api("/api/accounts", request("POST", Object.fromEntries(new FormData(form))));
+        form.reset();
+        showMessage(message, "Cuenta creada correctamente.", false);
+        await renderAccounts();
+      } catch (error) {
+        showMessage(message, error.message);
+      } finally {
+        submit.disabled = false;
       }
-      if (password.length < 8) {
-        showMessage(message, "La contraseña debe tener al menos 8 caracteres.");
-        return;
-      }
-      if (!["supervisor", "employee"].includes(role)) {
-        showMessage(message, "Selecciona un cargo válido.");
-        return;
-      }
-      if (getAccount(email)) {
-        showMessage(message, "Ya existe una cuenta con ese correo.");
-        return;
-      }
-      const salt = crypto.randomUUID();
-      const passwordHash = await hashPassword(password, salt);
-      const accounts = readAccounts();
-      accounts.push({ email, role, salt, passwordHash });
-      saveAccounts(accounts);
-      form.reset();
-      showMessage(message, "Cuenta creada correctamente.", false);
-      renderAccounts();
     });
 
-    document.querySelector("#accountList")?.addEventListener("change", (event) => {
+    document.querySelector("#accountList")?.addEventListener("change", async (event) => {
       const select = event.target.closest("[data-account-role]");
       if (!select) return;
-      const accounts = readAccounts();
-      const account = accounts.find((item) => item.email === select.dataset.accountRole);
-      if (!account || !["supervisor", "employee"].includes(select.value)) return;
-      account.role = select.value;
-      saveAccounts(accounts);
-      if (currentUser.email === account.email) currentUser = account;
-      renderAccounts();
+      try {
+        await api(`/api/accounts/${encodeURIComponent(select.dataset.accountRole)}/role`, request("PATCH", { role: select.value }));
+      } catch (error) {
+        showMessage(document.querySelector("#accountMessage"), error.message);
+      }
     });
 
-    document.querySelector("#accountList")?.addEventListener("click", (event) => {
+    document.querySelector("#accountList")?.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-remove-account]");
       if (!button) return;
-      const email = button.dataset.removeAccount;
-      if (!window.confirm(`¿Retirar el cargo de ${email}? Ya no podrá iniciar sesión.`)) return;
-      saveAccounts(readAccounts().filter((account) => account.email !== email));
-      renderAccounts();
+      if (!window.confirm("¿Retirar el cargo? La cuenta perderá acceso a este parqueo.")) return;
+      try {
+        await api(`/api/accounts/${encodeURIComponent(button.dataset.removeAccount)}`, { method: "DELETE" });
+        await renderAccounts();
+      } catch (error) {
+        showMessage(document.querySelector("#accountMessage"), error.message);
+      }
     });
   }
 
-  ensureAdminAccount();
-  if (isLoginPage) {
-    initializeLogin();
-    if (sessionStorage.getItem(SESSION_KEY) && getAccount(sessionStorage.getItem(SESSION_KEY))) {
-      location.replace("index.html");
-    } else {
-      document.documentElement.dataset.authPending = "false";
-    }
-  } else {
-    const sessionEmail = sessionStorage.getItem(SESSION_KEY);
-    currentUser = sessionEmail ? getAccount(sessionEmail) : null;
-    if (!currentUser) {
-      const next = encodeURIComponent(currentPage);
-      location.replace(`login.html?next=${next}`);
-    } else if (currentPage === "accounts.html" && currentUser.role !== "admin") {
-      location.replace("index.html");
-    } else {
+  async function initializeSession() {
+    try {
+      const result = await api("/api/auth/me");
+      currentUser = result.user;
+      const stateReady = await window.ParkFlow.ready;
+      if (!stateReady) {
+        document.body.innerHTML = '<main class="panel auth-error"><h1>No se pudo cargar el parqueo</h1><p>El servidor no pudo recuperar los datos de este parqueo.</p></main>';
+        document.documentElement.dataset.authPending = "false";
+        return;
+      }
+      if (currentPage === "accounts.html" && currentUser.role !== "admin") {
+        location.replace("index.html");
+        return;
+      }
       applyPermissions();
       initializeAccountManagement();
+    } catch (error) {
+      if (error.status === 401) {
+        location.replace(`login.html?next=${encodeURIComponent(currentPage)}`);
+        return;
+      }
+      document.body.innerHTML = '<main class="panel auth-error"><h1>Servicio no disponible</h1><p>No se pudo verificar la sesión con el servidor. Comprueba que ParkFlow y PostgreSQL estén activos y vuelve a cargar.</p></main>';
+      document.documentElement.dataset.authPending = "false";
     }
   }
 
-  document.addEventListener("click", (event) => {
-    if (event.target.closest("[data-auth-logout]")) {
-      sessionStorage.removeItem(SESSION_KEY);
+  window.ParkFlowAuth = {
+    canManageTariff,
+    canManageLayout,
+    getCurrentUser: () => currentUser,
+    ready: Promise.resolve(false),
+  };
+
+  if (isLoginPage) {
+    initializeLogin();
+    initializeParkingRegistration();
+    api("/api/auth/me").then(() => location.replace("index.html")).catch((error) => {
+      if (error.status !== 401) renderLoginError("No se pudo conectar con el servidor de ParkFlow.");
+      document.documentElement.dataset.authPending = "false";
+    });
+  } else {
+    window.ParkFlowAuth.ready = initializeSession().then(() => Boolean(currentUser));
+  }
+
+  document.addEventListener("click", async (event) => {
+    if (!event.target.closest("[data-auth-logout]")) return;
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+    } finally {
       location.replace("login.html");
     }
   });
@@ -278,9 +304,4 @@
     }, true);
   });
 
-  window.ParkFlowAuth = {
-    canManageTariff,
-    canManageLayout,
-    getCurrentUser: () => currentUser,
-  };
 })();

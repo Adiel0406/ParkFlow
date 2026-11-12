@@ -1,12 +1,11 @@
 /*
   Estado y reglas del parqueo.
-  Cada estructura se conserva en este archivo para que todas las páginas
-  consulten y actualicen los mismos datos guardados en localStorage.
+  Las reglas del estado viven en este archivo; su persistencia compartida
+  se resuelve en la API PostgreSQL asociada al parqueo autenticado.
 */
 "use strict";
 
 (() => {
-  const STORAGE_KEY = "parkflow-beta-v2";
   const DEFAULT_BILLING_INTERVALS = [
     { from: { value: 0, unit: "minutes" }, to: { value: 30, unit: "minutes" }, amount: 2.5 },
     { from: { value: 30, unit: "minutes" }, to: { value: 60, unit: "minutes" }, amount: 2.5 },
@@ -35,6 +34,8 @@
   // Arreglo de los últimos movimientos, compartido por todas las páginas.
   let historyEvents = [];
   let layout = DEFAULT_LAYOUT;
+  let saveQueue = Promise.resolve();
+  let pendingAuditEvents = [];
 
   function normalizeVehicle(vehicle, defaultFloor = "PB") {
     const normalized = {
@@ -115,76 +116,54 @@
     return `${floorLabel} · P-${String(vehicle.slot).padStart(2, "0")}`;
   }
 
-  function loadState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-
-      if (saved && Array.isArray(saved.vehicles)) {
-        if (isValidLayout(saved.layout)) {
-          layout = saved.layout;
-        }
-        // Completa atributos nuevos para conservar datos guardados previamente.
-        vehicles = saved.vehicles.map((vehicle) => normalizeVehicle(vehicle));
-        if (isValidBillingIntervals(saved.billingIntervals)) {
-          billingIntervals = saved.billingIntervals.map((interval) => ({ ...interval }));
-        } else if (Array.isArray(saved.billingIntervals) && saved.billingIntervals.every((interval) =>
-          interval && Number.isFinite(interval.duration) && interval.duration > 0
-          && ["minutes", "hours"].includes(interval.unit)
-          && Number.isFinite(interval.amount) && interval.amount >= 0)) {
-          let previousEndMinutes = 0;
-          billingIntervals = saved.billingIntervals.map((interval) => {
-            const durationMinutes = interval.duration * (interval.unit === "hours" ? 60 : 1);
-            const from = { value: previousEndMinutes, unit: "minutes" };
-            const to = { value: previousEndMinutes + durationMinutes, unit: "minutes" };
-            previousEndMinutes += durationMinutes;
-            return { from, to, amount: interval.amount };
-          });
-        } else if (Array.isArray(saved.billingIntervals) && saved.billingIntervals.every(Number.isFinite)) {
-          const previousRate = Number.isFinite(saved.hourlyRates?.Automóvil) ? saved.hourlyRates.Automóvil : 5;
-          let previousEnd = 0;
-          billingIntervals = saved.billingIntervals.map((end) => {
-            const start = previousEnd;
-            previousEnd = end;
-            return {
-              from: { value: start, unit: "minutes" },
-              to: { value: end, unit: "minutes" },
-              amount: Math.round(previousRate * (end - start) / 60 * 100) / 100,
-            };
-          }).filter((interval) => interval.to.value > interval.from.value);
-          if (!billingIntervals.length) {
-            billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({ ...interval }));
-          }
-        } else if (Array.isArray(saved.billingIntervals)) {
-          billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({ ...interval }));
-        }
-        if (!isValidBillingIntervals(billingIntervals)) {
-          billingIntervals = DEFAULT_BILLING_INTERVALS.map((interval) => ({
-            ...interval,
-            from: { ...interval.from },
-            to: { ...interval.to },
-          }));
-        }
-        const savedExitStack = Array.isArray(saved.exitStack) ? saved.exitStack : saved.undoStack;
-        exitStack = Array.isArray(savedExitStack)
-          ? savedExitStack.map((vehicle) => normalizeVehicle(vehicle))
-          : [];
-        historyEvents = Array.isArray(saved.historyEvents)
-          ? saved.historyEvents.filter((event) => event.type !== "wait")
-          : [];
-      }
-    } catch (error) {
-      console.warn("No se pudo cargar el estado guardado:", error);
+  async function loadStateFromServer() {
+    const response = await fetch("/api/parking/state", { credentials: "same-origin" });
+    if (!response.ok) throw new Error("No se pudo cargar el estado del parqueo.");
+    const { state: saved } = await response.json();
+    if (isValidLayout(saved.layout)) layout = saved.layout;
+    vehicles = Array.isArray(saved.vehicles) ? saved.vehicles.map((vehicle) => normalizeVehicle(vehicle)) : [];
+    exitStack = Array.isArray(saved.exitStack) ? saved.exitStack.map((vehicle) => normalizeVehicle(vehicle)) : [];
+    historyEvents = Array.isArray(saved.historyEvents) ? saved.historyEvents.filter((event) => event.type !== "wait") : [];
+    if (isValidBillingIntervals(saved.billingIntervals)) {
+      billingIntervals = saved.billingIntervals.map((interval) => ({
+        ...interval,
+        from: { ...interval.from },
+        to: { ...interval.to },
+      }));
     }
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      vehicles,
-      exitStack,
-      historyEvents,
-      layout,
-      billingIntervals,
-    }));
+    saveQueue = saveQueue.catch(() => {}).then(async () => {
+      const eventBatch = pendingAuditEvents.slice();
+      const response = await fetch("/api/parking/state", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicles,
+          exitStack,
+          historyEvents,
+          layout,
+          billingIntervals,
+          auditEvents: eventBatch.map((event) => ({
+            eventType: event.type,
+            message: event.message,
+            detail: event.detail,
+            metadata: event.metadata,
+          })),
+        }),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "No se pudo guardar el parqueo.");
+      }
+      pendingAuditEvents.splice(0, eventBatch.length);
+    }).catch((error) => {
+      console.error("No se pudo guardar el estado del parqueo:", error);
+      window.ParkFlow.showToast("No se pudo guardar en el servidor. Revisa la conexión y vuelve a intentar.");
+    });
+    return saveQueue;
   }
 
   function getState() {
@@ -256,15 +235,18 @@
     vehicle.column = space.column;
   }
 
-  function addHistory(type, message, detail = "") {
-    historyEvents.unshift({
+  function addHistory(type, message, detail = "", metadata = {}) {
+    const event = {
       type,
       message,
       detail,
       time: new Date().toISOString(),
-    });
+      metadata,
+    };
+    historyEvents.unshift(event);
 
     historyEvents = historyEvents.slice(0, 50);
+    pendingAuditEvents.push(event);
   }
 
   function getStayCharge(vehicle, now = Date.now()) {
@@ -307,6 +289,7 @@
       to: { value: Number(interval.to.value), unit: interval.to.unit },
       amount: Number(interval.amount),
     }));
+    addHistory("tariff", "Se actualizó el tarifario", `${billingIntervals.length} intervalos de cobro`, { billingIntervals });
     saveState();
     window.ParkFlow.render();
     window.ParkFlow.showToast("El tarifario y sus intervalos se guardaron correctamente.");
@@ -317,9 +300,10 @@
     let changed = false;
     vehicles.forEach((vehicle) => {
       if (!vehicle.paidAt || now - new Date(vehicle.paidAt).getTime() < EXIT_CONFIRMATION_WINDOW) return;
+      const expiredPayment = { paidAt: vehicle.paidAt, paidAmount: vehicle.paidAmount };
       vehicle.paidAt = null;
       vehicle.paidAmount = null;
-      addHistory("paymentDue", `${vehicle.plate} requiere un nuevo cobro`, "Venció el plazo de 10 minutos para registrar la salida");
+      addHistory("paymentDue", `${vehicle.plate} requiere un nuevo cobro`, "Venció el plazo de 10 minutos para registrar la salida", { plate: vehicle.plate, ...expiredPayment });
       changed = true;
     });
     if (changed) saveState();
@@ -370,7 +354,7 @@
 
     assignSpace(vehicle, space);
     vehicles.push(vehicle);
-    addHistory("entry", `${plate} ingresó al parqueo`, `${vehicle.make} ${vehicle.type} · ${vehicle.color} · ${formatSpace(vehicle)}`);
+    addHistory("entry", `${plate} ingresó al parqueo`, `${vehicle.make} ${vehicle.type} · ${vehicle.color} · ${formatSpace(vehicle)}`, { vehicle });
     window.ParkFlow.showToast(`Ingreso registrado: ${plate}, ${formatSpace(vehicle)}.`);
 
     saveState();
@@ -424,7 +408,13 @@
       name: String(customer.name || "").trim(),
       email: String(customer.email || "").trim(),
     };
-    addHistory("payment", `${vehicle.plate} pagó Bs ${charge.total}`, `${charge.billableMinutes.toFixed(1)} min facturados · salida antes de 10 min`);
+    addHistory("payment", `${vehicle.plate} pagó Bs ${charge.total}`, `${charge.billableMinutes.toFixed(1)} min facturados · salida antes de 10 min`, {
+      vehicle,
+      amount: charge.total,
+      billableMinutes: charge.billableMinutes,
+      customer: vehicle.invoiceCustomer,
+      intervalCharges: charge.intervalCharges,
+    });
     saveState();
     window.ParkFlow.render();
     window.ParkFlow.showToast(`Pago registrado: Bs ${charge.total}. Confirma la salida en 10 minutos.`);
@@ -448,7 +438,7 @@
 
     // Stack LIFO: conserva el vehículo pagado para revertir esta salida.
     exitStack.push({ ...vehicle, exitedAt: new Date().toISOString() });
-    addHistory("exit", `${vehicle.plate} salió del parqueo`, `Se liberó ${formatSpace(vehicle)}`);
+    addHistory("exit", `${vehicle.plate} salió del parqueo`, `Se liberó ${formatSpace(vehicle)}`, { vehicle });
 
     const message = `Salida registrada para ${vehicle.plate}.`;
 
@@ -482,7 +472,7 @@
     vehicles.push(vehicle);
     const remaining = Math.max(0, EXIT_CONFIRMATION_WINDOW - (Date.now() - new Date(vehicle.paidAt).getTime()));
     const remainingMinutes = Math.ceil(remaining / 60000);
-    addHistory("exitUndone", `Se revirtió la salida de ${vehicle.plate}`, `Se conservó el pago de Bs ${vehicle.paidAmount} y el tiempo restante (${remainingMinutes} min) · ${formatSpace(vehicle)}`);
+    addHistory("exitUndone", `Se revirtió la salida de ${vehicle.plate}`, `Se conservó el pago de Bs ${vehicle.paidAmount} y el tiempo restante (${remainingMinutes} min) · ${formatSpace(vehicle)}`, { vehicle });
 
     saveState();
     window.ParkFlow.render();
@@ -490,10 +480,12 @@
   }
 
   function resetDemo() {
+    const resetCount = vehicles.length;
     vehicles = [];
     exitStack = [];
     historyEvents = [];
 
+    addHistory("reset", "Se reinició la demo del parqueo", `${resetCount} vehículos activos eliminados de la vista operativa`, { removedVehicles: resetCount });
     saveState();
     window.ParkFlow.render();
     window.ParkFlow.showToast("La demo se restableció correctamente.");
@@ -520,13 +512,12 @@
         cells: floor.cells.slice(),
       })),
     };
+    addHistory("layout", "Se modificó el diseño del parqueo", `${layout.floors.length} pisos configurados`, { layout });
     saveState();
     window.ParkFlow.render();
     window.ParkFlow.showToast("El plano del parqueo se guardó correctamente.");
     return true;
   }
-
-  loadState();
 
   window.ParkFlow = {
     get capacity() {
@@ -563,4 +554,12 @@
       }
     },
   };
+
+  window.ParkFlow.ready = loadStateFromServer().then(() => {
+    window.ParkFlow.render();
+    return true;
+  }).catch((error) => {
+    console.error("No se pudo inicializar el parqueo:", error);
+    return false;
+  });
 })();

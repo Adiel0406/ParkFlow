@@ -10,8 +10,8 @@
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/themes.css">
-  <link rel="stylesheet" href="css/auth.css?v=roles-2">
-  <script defer src="js/auth.js?v=roles-3"></script>
+  <link rel="stylesheet" href="css/auth.css?v=auth-db-2">
+  <script defer src="js/auth.js?v=auth-db-2"></script>
 </head>
 <body class="login-page">
   <main class="login-shell">
@@ -28,10 +28,48 @@
         <input id="loginEmail" name="email" type="email" autocomplete="username" required autofocus>
         <label for="loginPassword">Contraseña</label>
         <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+        <label for="loginParkingLot" class="visually-hidden">Parqueo</label>
+        <select id="loginParkingLot" name="parkingLotId" hidden>
+          <option value="" disabled selected>Selecciona un parqueo</option>
+        </select>
         <p id="loginMessage" class="auth-message" role="alert" aria-live="polite"></p>
         <button class="btn btn-primary" type="submit">Entrar</button>
       </form>
     </section>
+    <details class="register-lot-panel">
+      <summary>Registrar un nuevo parqueo</summary>
+      <p class="subtitle">El registro crea el parqueo y su cuenta de administrador.</p>
+      <form id="registerParkingForm" class="register-lot-form">
+        <h2>Datos del parqueo</h2>
+        <label for="parkingName">Nombre del parqueo</label>
+        <input id="parkingName" name="parkingName" maxlength="120" autocomplete="organization" required>
+        <label for="parkingAddress">Dirección</label>
+        <input id="parkingAddress" name="parkingAddress" maxlength="240" autocomplete="street-address" required>
+        <label for="parkingPhone">Teléfono de contacto</label>
+        <input id="parkingPhone" name="parkingPhone" type="tel" maxlength="40" autocomplete="tel" required>
+        <h2>Datos del administrador</h2>
+        <div class="field-row">
+          <div>
+            <label for="adminFirstName">Nombres</label>
+            <input id="adminFirstName" name="firstName" maxlength="80" autocomplete="given-name" required>
+          </div>
+          <div>
+            <label for="adminLastName">Apellidos</label>
+            <input id="adminLastName" name="lastName" maxlength="100" autocomplete="family-name" required>
+          </div>
+        </div>
+        <label for="adminIdentityDocument">Documento de identidad (opcional)</label>
+        <input id="adminIdentityDocument" name="identityDocument" maxlength="40" autocomplete="off">
+        <label for="adminPhone">Teléfono personal</label>
+        <input id="adminPhone" name="phone" type="tel" maxlength="40" autocomplete="tel" required>
+        <label for="adminEmail">Correo electrónico</label>
+        <input id="adminEmail" name="email" type="email" maxlength="254" autocomplete="email" required>
+        <label for="adminPassword">Contraseña (mínimo 8 caracteres)</label>
+        <input id="adminPassword" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+        <p id="registrationMessage" class="auth-message" role="alert" aria-live="polite"></p>
+        <button class="btn btn-primary" type="submit">Registrar parqueo</button>
+      </form>
+    </details>
     <p class="login-footnote">ParkFlow · Administración de parqueo</p>
   </main>
 </body>

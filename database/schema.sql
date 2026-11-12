@@ -3,12 +3,18 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE parking_lots (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
+  address TEXT NOT NULL,
+  contact_phone TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   parking_lot_id UUID NOT NULL REFERENCES parking_lots(id) ON DELETE CASCADE,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  identity_document TEXT NOT NULL DEFAULT '',
+  phone TEXT NOT NULL,
   email TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'supervisor', 'employee')),
@@ -23,10 +29,24 @@ CREATE UNIQUE INDEX one_admin_per_parking_lot
   ON accounts (parking_lot_id)
   WHERE role = 'admin';
 
+CREATE TABLE auth_sessions (
+  token_hash CHAR(64) PRIMARY KEY,
+  parking_lot_id UUID NOT NULL,
+  account_id UUID NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT auth_sessions_account_same_parking_fk
+    FOREIGN KEY (parking_lot_id, account_id)
+    REFERENCES accounts (parking_lot_id, id) ON DELETE CASCADE
+);
+
+CREATE INDEX auth_sessions_expiry_idx ON auth_sessions (expires_at);
+
 CREATE TABLE parking_settings (
   parking_lot_id UUID PRIMARY KEY REFERENCES parking_lots(id) ON DELETE CASCADE,
   layout JSONB NOT NULL DEFAULT '{}'::jsonb,
   billing_intervals JSONB NOT NULL DEFAULT '[]'::jsonb,
+  application_state JSONB NOT NULL DEFAULT '{"vehicles":[],"exitStack":[],"historyEvents":[]}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -72,6 +92,7 @@ CREATE TABLE parking_events (
   event_type TEXT NOT NULL,
   message TEXT NOT NULL,
   detail TEXT NOT NULL DEFAULT '',
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT parking_events_account_same_parking_fk FOREIGN KEY (parking_lot_id, account_id)
     REFERENCES accounts (parking_lot_id, id) ON DELETE SET NULL (account_id)

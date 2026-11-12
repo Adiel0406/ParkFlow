@@ -20,11 +20,11 @@
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/themes.css">
   <link rel="stylesheet" href="css/responsive.css">
-  <link rel="stylesheet" href="css/auth.css?v=roles-2">
-  <script defer src="js/auth.js?v=roles-3"></script>
-  <script defer src="js/state.js"></script>
+  <link rel="stylesheet" href="css/auth.css?v=auth-db-2">
+  <script defer src="js/auth.js?v=auth-db-2"></script>
+  <script defer src="js/state.js?v=audit-1"></script>
   <script defer src="js/views.js"></script>
-  <script defer src="js/app.js?v=roles-2"></script>
+  <script defer src="js/app.js?v=audit-1"></script>
 </head>
 <body>
   <aside class="sidebar">
@@ -68,15 +68,35 @@
     <section class="panel account-management" data-admin-only hidden>
       <div class="panel-heading">
         <div><p class="eyebrow">EQUIPO DEL PARQUEO</p><h2>Crear una cuenta</h2></div>
+        <a class="btn btn-primary audit-download" href="/api/parking/audit.pdf" download>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v4h14v-4"/></svg>
+          Descargar auditoría PDF
+        </a>
       </div>
       <form id="accountForm" class="account-form">
         <div>
+          <label for="accountFirstName">Nombres</label>
+          <input id="accountFirstName" name="firstName" maxlength="80" autocomplete="given-name" required>
+        </div>
+        <div>
+          <label for="accountLastName">Apellidos</label>
+          <input id="accountLastName" name="lastName" maxlength="100" autocomplete="family-name" required>
+        </div>
+        <div>
+          <label for="accountIdentityDocument">Documento de identidad (opcional)</label>
+          <input id="accountIdentityDocument" name="identityDocument" maxlength="40" autocomplete="off">
+        </div>
+        <div>
+          <label for="accountPhone">Teléfono personal</label>
+          <input id="accountPhone" name="phone" type="tel" maxlength="40" autocomplete="tel" required>
+        </div>
+        <div>
           <label for="accountEmail">Correo electrónico</label>
-          <input id="accountEmail" name="email" type="email" autocomplete="off" required>
+          <input id="accountEmail" name="email" type="email" maxlength="254" autocomplete="email" required>
         </div>
         <div>
           <label for="accountPassword">Contraseña inicial</label>
-          <input id="accountPassword" name="password" type="password" minlength="8" autocomplete="new-password" required>
+          <input id="accountPassword" name="password" type="password" minlength="8" maxlength="128" autocomplete="new-password" required>
         </div>
         <div>
           <label for="accountRole">Cargo</label>
@@ -88,9 +108,9 @@
         <button class="btn btn-primary" type="submit">Crear cuenta</button>
       </form>
       <p id="accountMessage" class="auth-message" role="status" aria-live="polite"></p>
-      <div class="table-wrap">
+      <div class="table-wrap account-table-wrap">
         <table class="account-table">
-          <thead><tr><th>Correo</th><th>Cargo</th><th>Acción</th></tr></thead>
+          <thead><tr><th>Nombre completo</th><th>Documento</th><th>Teléfono</th><th>Correo</th><th>Cargo</th><th>Acción</th></tr></thead>
           <tbody id="accountList"></tbody>
         </table>
       </div>

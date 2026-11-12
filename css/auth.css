@@ -55,6 +55,43 @@ html[data-auth-pending="true"] body {
   margin-top: 6px;
 }
 
+.register-lot-panel {
+  margin-top: 14px;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.register-lot-panel summary {
+  color: var(--blue);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.register-lot-panel > .subtitle {
+  margin: 10px 0 16px;
+}
+
+.register-lot-form {
+  display: grid;
+  gap: 8px;
+}
+
+.register-lot-form h2 {
+  margin: 12px 0 2px;
+  font-size: 15px;
+}
+
+.register-lot-form .field-row {
+  margin-bottom: 4px;
+}
+
+.register-lot-form .btn {
+  width: 100%;
+  margin-top: 6px;
+}
+
 .auth-message {
   min-height: 20px;
   margin: 0;
@@ -97,7 +134,7 @@ html[data-auth-pending="true"] body {
 
 .account-form {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(140px, 0.8fr) minmax(130px, 0.7fr) auto;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
   align-items: end;
   gap: 12px;
   margin: 20px 0;
@@ -133,6 +170,27 @@ html[data-auth-pending="true"] body {
   white-space: nowrap;
 }
 
+.account-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.audit-download svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -148,6 +206,10 @@ html[data-auth-pending="true"] body {
 @media (max-width: 700px) {
   .account-form {
     grid-template-columns: 1fr;
+  }
+
+  .register-lot-panel {
+    padding: 14px;
   }
 
   .auth-identity {

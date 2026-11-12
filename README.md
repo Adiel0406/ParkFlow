@@ -4,9 +4,15 @@
 Para usar la aplicación con PostgreSQL y el envío de facturas, inicia Docker Compose y abre `http://localhost:3000/login.html`. Live Server sigue disponible para la interfaz estática, pero esa modalidad no usa la base de datos ni el endpoint de correo.
 
 ### Backend PostgreSQL
-El backend inicial está preparado con Node.js y Docker Compose. Copia `.env.example` a `.env`, configura una contraseña PostgreSQL aleatoria y ejecuta `docker compose up --build`. El servicio sirve la aplicación y expone `/api/health` para comprobar la conexión. PostgreSQL crea las tablas desde `database/schema.sql`; el esquema parte sin parqueos, cuentas, vehículos ni facturas. Los datos del navegador todavía no se sincronizan con PostgreSQL.
+El backend usa Node.js y PostgreSQL. Copia `.env.example` a `.env`, configura una contraseña PostgreSQL aleatoria y ejecuta `docker compose up --build`. El servicio sirve la aplicación en `http://localhost:3000` y expone `/api/health`. El acceso inicial no incluye credenciales sembradas: cada administrador se crea al registrar un parqueo desde la pantalla de login.
 
-Al confirmar un pago, si se ingresó un correo, la aplicación envía únicamente los detalles de la factura como texto plano mediante SMTP, sin adjuntos. Para habilitarlo, configura `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM` en `.env`. Sin esa configuración, el pago se confirma y la interfaz informa que el correo no pudo enviarse. El endpoint de correo es para uso local; antes de exponerlo a Internet se debe completar la autenticación y autorización del backend.
+El formulario registra nombre, dirección y teléfono del parqueo, y nombres, apellidos, teléfono, correo y contraseña de su administrador. El documento de identidad es opcional. Parqueo, configuración inicial, administrador y sesión se crean en una sola transacción. Las cuentas de supervisor/empleado guardan los mismos datos personales y quedan limitadas al parqueo del administrador que las creó. Las contraseñas se almacenan con scrypt; la sesión usa una cookie HttpOnly y se persiste en PostgreSQL. Para producción configura `COOKIE_SECURE=true` detrás de HTTPS.
+
+Vehículos, historial, diseño y tarifas se cargan y guardan como estado JSONB asociado al parqueo autenticado en `parking_settings`. El servidor valida en cada escritura que solo un administrador cambie el plano y que los empleados no cambien tarifas. La interfaz ya no usa `localStorage` para iniciar sesión, guardar cuentas ni para el estado operativo. La preferencia visual del tema sí permanece local al navegador.
+
+Al confirmar un pago, si se ingresó un correo, la aplicación envía únicamente los detalles de la factura como texto plano mediante SMTP, sin adjuntos. Para habilitarlo, configura `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM` en `.env`. Sin esa configuración, el pago se confirma y la interfaz informa que el correo no pudo enviarse.
+
+En «Cuentas y cargos», el administrador puede pulsar «Descargar auditoría PDF». Incluye datos del parqueo, cuentas y cargos, vehículos activos, salidas recuperables, tarifario, diseño y todos los eventos almacenados con fecha del servidor, responsable y cargo al momento: registros, pagos, salidas, vencimientos, cambios de configuración/cargos, inicios de sesión, reinicios y envíos de factura. Los eventos se confirman junto con el estado operativo y se conservan en `parking_events`; el historial visual de 50 movimientos no limita el informe. El registro completo comienza desde la activación del historial de auditoría.
 
 ## Estructura de carpetas
 ```text
@@ -33,21 +39,20 @@ ParkFlow/
 │   └── app.js
 ├── database/schema.sql
 ├── database/migrations/002_tenant_constraints.sql
+├── database/migrations/003_registration_and_sessions.sql
 ├── server/index.js
 ├── docker-compose.yml
 ├── package.json
 └── README.md
 ```
 
-`login.html` es el acceso inicial. El administrador preconfigurado usa el correo `imanaadiel4@gmail.com`; puede crear y retirar cuentas de supervisores y empleados desde la página «Cuentas y cargos». El supervisor puede operar el parqueo y editar tarifas, pero no cambiar su diseño. El empleado puede operar el parqueo y consultar el tarifario, pero no modificarlo. El administrador conserva todas las funciones.
+`login.html` es el acceso inicial e incluye «Registrar un nuevo parqueo». No hay administrador ni contraseña predeterminados. El administrador puede crear, cambiar de cargo y retirar cuentas del equipo desde «Cuentas y cargos». El supervisor puede operar el parqueo y editar tarifas, pero no cambiar su diseño. El empleado puede operar el parqueo y consultar tarifas, pero no modificarlas. El administrador conserva todas las funciones.
 
 `index.html` contiene el resumen y el formulario de ingreso; `accounts.html` administra el equipo; `vehicles.html` permite buscar vehículos, emitir facturas y registrar salidas; `spaces.html` muestra el mapa y la cola de confirmación de salida; `tariff.html` permite modificar tarifas e intervalos; `layout.html` permite diseñar el parqueo. Las páginas cargan primero `auth.js`, que aplica la sesión y los permisos, y luego el estado, el renderizado y los eventos.
 
-El acceso de la versión actual todavía guarda cuentas, roles y sesión en el navegador. El esquema y el endpoint de salud de PostgreSQL son solo la base para la siguiente etapa: autenticación, cuentas, permisos y datos del parqueo aún deben migrarse al backend antes de usarlo con datos reales.
+En «Armar parqueo» se configuran hasta 5 subsuelos y 10 niveles desde la planta baja, con una cuadrícula de hasta 20 × 20 por piso. Se pueden dibujar espacios, pasillos, entradas, rampas, rampas circulares y celdas vacías. La capacidad se calcula a partir de las celdas marcadas como espacio. Para guardar cambios en el plano, todos los vehículos deben haber registrado su salida. El diseño se guarda en PostgreSQL junto al parqueo.
 
-En «Armar parqueo» se configuran hasta 5 subsuelos y 10 niveles desde la planta baja, con una cuadrícula de hasta 20 × 20 por piso. Se pueden dibujar espacios, pasillos, entradas, rampas, rampas circulares y celdas vacías. La capacidad se calcula a partir de las celdas marcadas como espacio. Para guardar cambios en el plano, todos los vehículos deben haber registrado su salida. El diseño y los datos se guardan en el mismo `localStorage`.
-
-El tarifario es común a todos los tipos de vehículo y se configura en «Tarifario» con rangos «De / Hasta», cada límite expresado en minutos u horas, y un monto fijo en bolivianos. El primer rango inicia en 0; los demás comienzan exactamente donde termina el rango anterior y deben tener un límite final mayor. Se cobra el monto fijo del rango en que cae la estadía; al superar el último límite, se mantiene el monto del último rango. Los extremos superiores son inclusivos, por lo que un tiempo exactamente igual al límite se cobra con el rango que termina en ese límite. Por defecto, los rangos son de 0 a 30 min por Bs 2,50, de 30 a 60 min por Bs 2,50 y de 60 a 120 min por Bs 5,00. La configuración se conserva en `localStorage`. Al pulsar «Ver factura» en «Vehículos» se muestra el rango y monto antes de confirmar el pago y se pueden ingresar NIT, nombre y correo, todos opcionales. Cancelar requiere confirmación y no registra el pago. Después de confirmar el cobro, el vehículo entra en la cola de salida por 10 minutos. Si no se confirma la salida en ese plazo, se solicita un nuevo cobro calculado desde el ingreso original.
+El tarifario es común a todos los tipos de vehículo y se configura en «Tarifario» con rangos «De / Hasta», cada límite expresado en minutos u horas, y un monto fijo en bolivianos. El primer rango inicia en 0; los demás comienzan exactamente donde termina el rango anterior y deben tener un límite final mayor. Se cobra el monto fijo del rango en que cae la estadía; al superar el último límite, se mantiene el monto del último rango. Los extremos superiores son inclusivos, por lo que un tiempo exactamente igual al límite se cobra con el rango que termina en ese límite. Por defecto, los rangos son de 0 a 30 min por Bs 2,50, de 30 a 60 min por Bs 2,50 y de 60 a 120 min por Bs 5,00. La configuración se conserva en PostgreSQL por parqueo. Al pulsar «Ver factura» en «Vehículos» se muestra el rango y monto antes de confirmar el pago y se pueden ingresar NIT, nombre y correo, todos opcionales. Cancelar requiere confirmación y no registra el pago. Después de confirmar el cobro, el vehículo entra en la cola de salida por 10 minutos. Si no se confirma la salida en ese plazo, se solicita un nuevo cobro calculado desde el ingreso original.
 
 El logo `assets/parking.svg` se usa como identidad visual y favicon. La interfaz se adapta a escritorio, tabletas y celulares mediante `css/responsive.css`; en pantallas pequeñas la navegación se coloca arriba del contenido y las tablas pueden desplazarse horizontalmente.
 
@@ -57,7 +62,7 @@ El botón «Modo oscuro» de la navegación cambia el tema en todas las páginas
 
 ## Estructuras implementadas y por qué
 
-- **Arreglos — vehículos activos, historial, pisos y celdas.** Son apropiados porque la aplicación recorre y muestra estos datos con frecuencia, los persiste fácilmente como JSON en `localStorage` y trabaja con colecciones acotadas. Agregar al final suele ser O(1) amortizado; buscar o eliminar por valor es O(n). El historial conserva como máximo 50 eventos.
+- **Arreglos — vehículos activos, historial, pisos y celdas.** Son apropiados porque la aplicación recorre y muestra estos datos con frecuencia, los persiste como JSONB en PostgreSQL y trabaja con colecciones acotadas. Agregar al final suele ser O(1) amortizado; buscar o eliminar por valor es O(n). El historial conserva como máximo 50 eventos.
 - **`Map` — consultas por placa y espacio.** Se usa para comprobar placas activas y relacionar espacios con vehículos. Consultar una clave tiene costo promedio O(1), pero los mapas se reconstruyen desde los vehículos en cada operación: construirlos cuesta O(n). Por eso, no se presenta como una mejora global de O(1), sino como un índice conveniente para las consultas por clave.
 - **`Set` — validación de la configuración del plano.** Comprueba que los tipos de celda permitidos sean válidos y que no se repitan los identificadores de piso. Es adecuado para validar pertenencia y unicidad, con costo promedio O(1) por consulta.
 - **Pila (LIFO) — deshacer la última salida.** La última salida guarda temporalmente la información del vehículo y del pago; al deshacer, se recupera esa salida conservando el `paidAt` original. Así vuelve al estado de confirmación con solo el tiempo que le quedaba dentro de los 10 minutos.
@@ -81,6 +86,6 @@ La tabla de vehículos se filtra y ordena una copia, sin modificar los datos ori
 No se añadieron solo para contar estructuras: el flujo actual no los necesita. Una futura ampliación podría usar un árbol binario de búsqueda para indexar placas, o un grafo para representar rutas entre sectores del estacionamiento. Recursividad sería útil si se recorriera un árbol de forma recursiva, pero no aporta una ventaja clara en esta versión.
 
 ## Límites
-- Los datos actuales de la aplicación siguen en `localStorage`; el backend de PostgreSQL solo expone salud y envío SMTP, todavía no persiste vehículos, cuentas ni configuración.
-- Las cuentas y los roles continúan verificándose en el navegador. Hace falta trasladar autenticación y autorización al servidor antes de usarlo con datos reales o exponerlo a Internet.
-- El envío de correos requiere credenciales SMTP válidas y solo se ha probado el rechazo controlado cuando falta esa configuración.
+- El estado de vehículos, layout, tarifas e historial se guarda como JSONB por parqueo. El esquema también define tablas relacionales de vehículos, facturas y eventos para una siguiente normalización; las vistas actuales usan el estado JSONB.
+- Configura TLS, `COOKIE_SECURE=true`, copias de seguridad y protección frente a intentos de login antes de exponer el servicio a Internet.
+- El correo requiere credenciales SMTP y un remitente/dominio configurado. El envío es autenticado, de texto plano y contiene solo el detalle de la factura; todavía no está habilitado sin esas credenciales.

@@ -7,6 +7,8 @@
 
 (() => {
   const $ = (selector) => document.querySelector(selector);
+  Promise.all([window.ParkFlow.ready, window.ParkFlowAuth.ready]).then(([stateReady, authReady]) => {
+    if (!stateReady || !authReady) return;
 
   const THEME_STORAGE_KEY = "parkflow-theme";
 
@@ -505,4 +507,5 @@
 
   window.ParkFlow.render();
   window.setInterval(window.ParkFlow.render, 1000);
+  });
 })();
