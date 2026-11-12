@@ -291,7 +291,7 @@
     invoiceDialog?.close();
     pendingInvoice = null;
   });
-  $("#confirmInvoicePayment")?.addEventListener("click", () => {
+  $("#confirmInvoicePayment")?.addEventListener("click", async () => {
     if (!pendingInvoice) return;
     const email = $("#invoiceCustomerEmail");
     if (email.value && !email.checkValidity()) {
@@ -308,8 +308,31 @@
       },
     );
     if (paid) {
+      const emailRequest = email.value.trim()
+        ? {
+            to: email.value.trim(),
+            invoice: pendingInvoice,
+            customer: {
+              name: $("#invoiceCustomerName").value.trim(),
+              nit: $("#invoiceCustomerNit").value.trim(),
+            },
+          }
+        : null;
       invoiceDialog?.close();
       pendingInvoice = null;
+      if (emailRequest) {
+        try {
+          const response = await fetch("/api/invoices/email-details", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(emailRequest),
+          });
+          if (!response.ok) throw new Error("Invoice email was not accepted.");
+          window.ParkFlow.showToast(`Detalle de factura enviado a ${emailRequest.to}.`);
+        } catch (error) {
+          window.ParkFlow.showToast("Pago confirmado, pero no se pudo enviar el detalle de la factura. Revisa la configuración del correo.");
+        }
+      }
       return;
     }
     const refreshedInvoice = window.ParkFlow.createInvoice(pendingInvoice.vehicleId);
@@ -385,10 +408,14 @@
       document.querySelectorAll("[data-layout-type]").forEach((button) => {
         button.setAttribute("aria-pressed", String(button.dataset.layoutType === selectedTileType));
       });
+      const canManageLayout = window.ParkFlowAuth?.canManageLayout() || false;
+      document.querySelectorAll("[data-layout-type], [data-floor-index], [data-cell-index]").forEach((button) => {
+        button.disabled = !canManageLayout;
+      });
 
       const state = window.ParkFlow.getState();
       const isLocked = state.vehicles.length > 0;
-      $("#saveLayout")?.toggleAttribute("disabled", isLocked);
+      $("#saveLayout")?.toggleAttribute("disabled", isLocked || !canManageLayout);
       $("#layoutLockMessage").hidden = !isLocked;
     }
 

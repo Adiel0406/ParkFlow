@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Inicio de sesión de ParkFlow.">
+  <title>ParkFlow | Iniciar sesión</title>
+  <script>document.documentElement.dataset.authPending = "true";</script>
+  <link rel="icon" href="assets/parking.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/auth.css?v=roles-2">
+  <script defer src="js/auth.js?v=roles-3"></script>
+</head>
+<body class="login-page">
+  <main class="login-shell">
+    <a class="brand login-brand" href="login.html" aria-label="ParkFlow">
+      <img src="assets/parking.svg" alt="" class="brand-icon">
+      <span>Park<span class="brand-accent">Flow</span><small>GESTIÓN DE PARQUEO</small></span>
+    </a>
+    <section class="panel login-panel" aria-labelledby="loginTitle">
+      <p class="eyebrow">ACCESO AL SISTEMA</p>
+      <h1 id="loginTitle">Iniciar sesión</h1>
+      <p class="subtitle">Ingresa con la cuenta asignada por el administrador.</p>
+      <form id="loginForm">
+        <label for="loginEmail">Correo electrónico</label>
+        <input id="loginEmail" name="email" type="email" autocomplete="username" required autofocus>
+        <label for="loginPassword">Contraseña</label>
+        <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
+        <p id="loginMessage" class="auth-message" role="alert" aria-live="polite"></p>
+        <button class="btn btn-primary" type="submit">Entrar</button>
+      </form>
+    </section>
+    <p class="login-footnote">ParkFlow · Administración de parqueo</p>
+  </main>
+</body>
+</html>

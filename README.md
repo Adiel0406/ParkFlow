@@ -1,12 +1,19 @@
-# ParkFlow Beta — Registro de parqueo
+# ParkFlow — Registro de parqueo
 
 ## Ejecutar
-Abre la carpeta del proyecto en Visual Studio Code y sirve `index.html` con Live Server (o con cualquier servidor web local). Es recomendable usar el mismo origen para que las páginas compartan los datos guardados en `localStorage`. No necesita librerías.
+Para usar la aplicación con PostgreSQL y el envío de facturas, inicia Docker Compose y abre `http://localhost:3000/login.html`. Live Server sigue disponible para la interfaz estática, pero esa modalidad no usa la base de datos ni el endpoint de correo.
+
+### Backend PostgreSQL
+El backend inicial está preparado con Node.js y Docker Compose. Copia `.env.example` a `.env`, configura una contraseña PostgreSQL aleatoria y ejecuta `docker compose up --build`. El servicio sirve la aplicación y expone `/api/health` para comprobar la conexión. PostgreSQL crea las tablas desde `database/schema.sql`; el esquema parte sin parqueos, cuentas, vehículos ni facturas. Los datos del navegador todavía no se sincronizan con PostgreSQL.
+
+Al confirmar un pago, si se ingresó un correo, la aplicación envía únicamente los detalles de la factura como texto plano mediante SMTP, sin adjuntos. Para habilitarlo, configura `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` y `SMTP_FROM` en `.env`. Sin esa configuración, el pago se confirma y la interfaz informa que el correo no pudo enviarse. El endpoint de correo es para uso local; antes de exponerlo a Internet se debe completar la autenticación y autorización del backend.
 
 ## Estructura de carpetas
 ```text
-ParqueoBeta/
+ParkFlow/
 ├── index.html
+├── accounts.html
+├── login.html
 ├── vehicles.html
 ├── spaces.html
 ├── tariff.html
@@ -17,15 +24,26 @@ ParqueoBeta/
 │   ├── components.css
 │   ├── pages.css
 │   ├── themes.css
-│   └── responsive.css
+│   ├── responsive.css
+│   └── auth.css
 ├── js/
+│   ├── auth.js
 │   ├── state.js
 │   ├── views.js
 │   └── app.js
+├── database/schema.sql
+├── database/migrations/002_tenant_constraints.sql
+├── server/index.js
+├── docker-compose.yml
+├── package.json
 └── README.md
 ```
 
-`index.html` contiene el resumen y el formulario de ingreso; `vehicles.html` permite buscar vehículos, emitir facturas y registrar salidas; `spaces.html` muestra el mapa y la cola de confirmación de salida; `tariff.html` permite modificar tarifas e intervalos; `layout.html` permite diseñar el parqueo. Los archivos JavaScript se cargan en este orden: primero el estado y las estructuras, luego el renderizado y finalmente los eventos.
+`login.html` es el acceso inicial. El administrador preconfigurado usa el correo `imanaadiel4@gmail.com`; puede crear y retirar cuentas de supervisores y empleados desde la página «Cuentas y cargos». El supervisor puede operar el parqueo y editar tarifas, pero no cambiar su diseño. El empleado puede operar el parqueo y consultar el tarifario, pero no modificarlo. El administrador conserva todas las funciones.
+
+`index.html` contiene el resumen y el formulario de ingreso; `accounts.html` administra el equipo; `vehicles.html` permite buscar vehículos, emitir facturas y registrar salidas; `spaces.html` muestra el mapa y la cola de confirmación de salida; `tariff.html` permite modificar tarifas e intervalos; `layout.html` permite diseñar el parqueo. Las páginas cargan primero `auth.js`, que aplica la sesión y los permisos, y luego el estado, el renderizado y los eventos.
+
+El acceso de la versión actual todavía guarda cuentas, roles y sesión en el navegador. El esquema y el endpoint de salud de PostgreSQL son solo la base para la siguiente etapa: autenticación, cuentas, permisos y datos del parqueo aún deben migrarse al backend antes de usarlo con datos reales.
 
 En «Armar parqueo» se configuran hasta 5 subsuelos y 10 niveles desde la planta baja, con una cuadrícula de hasta 20 × 20 por piso. Se pueden dibujar espacios, pasillos, entradas, rampas, rampas circulares y celdas vacías. La capacidad se calcula a partir de las celdas marcadas como espacio. Para guardar cambios en el plano, todos los vehículos deben haber registrado su salida. El diseño y los datos se guardan en el mismo `localStorage`.
 
@@ -63,6 +81,6 @@ La tabla de vehículos se filtra y ordena una copia, sin modificar los datos ori
 No se añadieron solo para contar estructuras: el flujo actual no los necesita. Una futura ampliación podría usar un árbol binario de búsqueda para indexar placas, o un grafo para representar rutas entre sectores del estacionamiento. Recursividad sería útil si se recorriera un árbol de forma recursiva, pero no aporta una ventaja clara en esta versión.
 
 ## Límites
-- Guarda datos en `localStorage`, solo en ese navegador/dispositivo.
-- No usa servidor ni base de datos compartida.
-- Es una beta académica, no un sistema de cobro o auditoría listo para producción.
+- Los datos actuales de la aplicación siguen en `localStorage`; el backend de PostgreSQL solo expone salud y envío SMTP, todavía no persiste vehículos, cuentas ni configuración.
+- Las cuentas y los roles continúan verificándose en el navegador. Hace falta trasladar autenticación y autorización al servidor antes de usarlo con datos reales o exponerlo a Internet.
+- El envío de correos requiere credenciales SMTP válidas y solo se ha probado el rechazo controlado cuando falta esa configuración.

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Mapa, tarifario y cola de salida del parqueo ParkFlow.">
   <title>ParkFlow | Espacios</title>
+  <script>document.documentElement.dataset.authPending = "true";</script>
   <script>
     try {
       document.documentElement.dataset.theme =
@@ -19,9 +20,11 @@
   <link rel="stylesheet" href="css/pages.css">
   <link rel="stylesheet" href="css/themes.css">
   <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/auth.css?v=roles-2">
+  <script defer src="js/auth.js?v=roles-3"></script>
   <script defer src="js/state.js"></script>
   <script defer src="js/views.js"></script>
-  <script defer src="js/app.js"></script>
+  <script defer src="js/app.js?v=roles-2"></script>
 </head>
 <body>
   <!-- Navegación compartida entre las páginas del sistema. -->
@@ -52,13 +55,16 @@
       <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>
       Armar parqueo
     </a>
+    <a class="nav-item" href="accounts.html" data-admin-only hidden>
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1m2-13h4m-2-2v4m-2 8h4"/></svg>
+      Cuentas y cargos
+    </a>
     <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
       <span class="theme-toggle-icon" aria-hidden="true">☾</span>
       <span class="theme-toggle-label">Modo oscuro</span>
     </button>
 
     <div class="sidebar-bottom">
-      <div class="beta-pill"><span></span> VERSIÓN BETA</div>
       <p>Proyecto académico<br><strong>Estructuras de Datos</strong></p>
     </div>
   </aside>
@@ -141,7 +147,7 @@
       </div>
     </section>
 
-    <footer class="footer">ParkFlow Beta <span>•</span> Datos guardados en este navegador</footer>
+    <footer class="footer">ParkFlow <span>•</span> Datos guardados en este navegador</footer>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

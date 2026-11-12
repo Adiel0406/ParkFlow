@@ -293,6 +293,10 @@
   }
 
   function saveTariffConfig(intervals) {
+    if (!window.ParkFlowAuth?.canManageTariff()) {
+      window.ParkFlow?.showToast("Tu cargo no permite modificar el tarifario.");
+      return false;
+    }
     if (!isValidBillingIntervals(intervals)) {
       window.ParkFlow.showToast("Los intervalos deben empezar en 0, tener límites crecientes y continuos, unidades válidas y montos no negativos.");
       return false;
@@ -496,6 +500,10 @@
   }
 
   function saveLayout(nextLayout) {
+    if (!window.ParkFlowAuth?.canManageLayout()) {
+      window.ParkFlow?.showToast("Solo el administrador puede modificar el parqueo.");
+      return false;
+    }
     if (vehicles.length) {
       window.ParkFlow.showToast("Registra la salida de todos los vehículos antes de cambiar el plano.");
       return false;

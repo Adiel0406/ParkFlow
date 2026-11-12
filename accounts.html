@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Administra las cuentas y cargos del equipo de ParkFlow.">
+  <title>ParkFlow | Cuentas y cargos</title>
+  <script>document.documentElement.dataset.authPending = "true";</script>
+  <script>
+    try {
+      document.documentElement.dataset.theme =
+        localStorage.getItem("parkflow-theme") === "dark" ? "dark" : "light";
+    } catch (error) {
+      document.documentElement.dataset.theme = "light";
+    }
+  </script>
+  <link rel="icon" href="assets/parking.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/themes.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/auth.css?v=roles-2">
+  <script defer src="js/auth.js?v=roles-3"></script>
+  <script defer src="js/state.js"></script>
+  <script defer src="js/views.js"></script>
+  <script defer src="js/app.js?v=roles-2"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="index.html" aria-label="ParkFlow inicio">
+      <img src="assets/parking.svg" alt="" class="brand-icon">
+      <span>Park<span class="brand-accent">Flow</span><small>GESTIÓN DE PARQUEO</small></span>
+    </a>
+    <div class="side-label">MENÚ PRINCIPAL</div>
+    <a class="nav-item" href="index.html"><svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M8 16v-5m4 5V8m4 8v-7m4 7V4"/></svg>Resumen</a>
+    <a class="nav-item" href="vehicles.html"><svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15.5 4.5 11h15l1.5 4.5M3 15.5h18v4H3zM6 19.5v2m12-2v2M6.5 11l1.3-3h8.4l1.3 3"/></svg>Vehículos</a>
+    <a class="nav-item" href="spaces.html"><svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h14v17M9 17V8h4a3 3 0 0 1 0 6H9m-4 4h14"/></svg>Espacios</a>
+    <a class="nav-item" href="tariff.html"><svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16M8 3v4m8 3v4m-5 3v4"/></svg>Tarifario</a>
+    <a class="nav-item" href="layout.html"><svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><path d="M13 17h8m-4-4v8"/></svg>Armar parqueo</a>
+    <a class="nav-item active" href="accounts.html" aria-current="page" data-admin-only hidden>
+      <svg class="nav-symbol" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1m2-13h4m-2-2v4m-2 8h4"/></svg>
+      Cuentas y cargos
+    </a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+      <span class="theme-toggle-label">Modo oscuro</span>
+    </button>
+    <div class="sidebar-bottom">
+      <p>Proyecto académico<br><strong>Estructuras de Datos</strong></p>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ACCESO DEL EQUIPO</p>
+        <h1>Cuentas y cargos</h1>
+        <p class="subtitle">Administra quién puede operar este parqueo y qué acciones tiene permitidas.</p>
+      </div>
+      <div class="topbar-right">
+        <span class="status-dot"></span>
+        <span>Sistema local activo</span>
+        <div class="avatar">PF</div>
+      </div>
+    </header>
+
+    <section class="panel account-management" data-admin-only hidden>
+      <div class="panel-heading">
+        <div><p class="eyebrow">EQUIPO DEL PARQUEO</p><h2>Crear una cuenta</h2></div>
+      </div>
+      <form id="accountForm" class="account-form">
+        <div>
+          <label for="accountEmail">Correo electrónico</label>
+          <input id="accountEmail" name="email" type="email" autocomplete="off" required>
+        </div>
+        <div>
+          <label for="accountPassword">Contraseña inicial</label>
+          <input id="accountPassword" name="password" type="password" minlength="8" autocomplete="new-password" required>
+        </div>
+        <div>
+          <label for="accountRole">Cargo</label>
+          <select id="accountRole" name="role" required>
+            <option value="supervisor">Supervisor</option>
+            <option value="employee">Empleado</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" type="submit">Crear cuenta</button>
+      </form>
+      <p id="accountMessage" class="auth-message" role="status" aria-live="polite"></p>
+      <div class="table-wrap">
+        <table class="account-table">
+          <thead><tr><th>Correo</th><th>Cargo</th><th>Acción</th></tr></thead>
+          <tbody id="accountList"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">ParkFlow <span>•</span> Administración del equipo</footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

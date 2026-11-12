@@ -1,0 +1,16 @@
+{
+  "name": "parkflow",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aplicación local de administración de parqueo",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "nodemailer": "^10.5.0",
+    "pg": "^8.16.3"
+  }
+}
